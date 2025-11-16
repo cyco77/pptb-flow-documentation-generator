@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Create shrinkwrap
+        run: npm run finalize-package
+
+      - name: Create distribution package
+        run: |
+          mkdir -p release
+          cp -r dist release/
+          cp npm-shrinkwrap.json release/
+          cp package.json release/
+          cp README.md release/
+          cp LICENSE release/
+          cd release
+          tar -czf ../pptb-plugin-documentation-generator-${{ github.ref_name }}.tar.gz .
+          cd ..
+          zip -r pptb-plugin-documentation-generator-${{ github.ref_name }}.zip release/
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            pptb-plugin-documentation-generator-${{ github.ref_name }}.tar.gz
+            pptb-plugin-documentation-generator-${{ github.ref_name }}.zip
+          body: |
+            ## Plugin Documentation Generator ${{ steps.version.outputs.version }}
+
+            ### Installation
+            1. Download the package (tar.gz or zip)
+            2. Extract the contents
+            3. Install in Power Platform Toolbox
+
+            ### What's Changed
+            See the full changelog below.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

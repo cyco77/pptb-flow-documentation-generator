@@ -14,7 +14,6 @@ import {
   Text,
 } from "@fluentui/react-components";
 import iconImage from "../icon/flow-documentation_small.png";
-import { EventLog } from "./components/EventLog";
 
 const useStyles = makeStyles({
   root: {

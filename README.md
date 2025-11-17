@@ -22,21 +22,31 @@
 
 ### Core Capabilities
 
-- � **Flow List View** - View all Cloud Flows in your Dynamics 365 environment in a sortable table
+- 📋 **Flow List View** - View all Cloud Flows in your Dynamics 365 environment in a sortable table
+  - Sortable columns with visual arrow indicators (ascending/descending)
+  - Optimized column widths for better data visibility
+  - Click any row to open details in a side drawer
 - 🔍 **Advanced Filtering** - Real-time search by flow name and description
 - 📈 **Interactive Mermaid Diagrams** - Visualize flow logic with auto-generated Mermaid flowcharts
-- �️ **Multiple View Modes**:
-  - **Diagram View**: Interactive flowchart visualization
-  - **Mermaid Code**: View and copy the raw Mermaid syntax
+- 🖼️ **Multiple View Modes**:
+  - **Diagram View**: Interactive flowchart visualization with zoom controls
+  - **Mermaid Code**: View and copy the raw Mermaid syntax (formatted with line breaks)
   - **JSON View**: Inspect the original flow definition data
+- 🔍 **Advanced Zoom Controls**:
+  - Zoom range from 50% to 1000%
+  - Interactive slider for precise control
+  - +/- buttons for quick adjustments
+  - Mouse wheel zoom with Ctrl/Cmd modifier
+  - Reset button to return to 100%
 - 📤 **Multiple Export Formats**:
   - Export flow list as CSV file
   - Copy flow list to clipboard as CSV
-  - Copy flow list as Mermaid diagrams (Markdown format)
-  - Export individual flow diagrams as SVG
+  - Copy flow list as Markdown table with flow details
+  - Export individual flow diagrams as SVG file
+  - Copy individual flow diagrams as SVG to clipboard
 - 🎨 **Modern Theme Support**:
   - Automatic light/dark theme switching based on PPTB settings
-  - Fresh, modern color palette for light mode diagrams
+  - Fresh, modern color palette for light mode diagrams (Material Design)
   - Optimized dark mode styling
 - 📢 **Visual Notifications** - Toast notifications for all operations
 - 📝 **Event Logging** - Track all operations and API calls in real-time
@@ -177,22 +187,32 @@ npm run preview
 
 #### Flow List View
 
-- **Searchable Table**: View all flows with sortable columns (Name, State, Created On, Modified On)
+- **Searchable Table**: View all flows with sortable columns (Name, Description, State, Created On, Modified On)
+  - Click column headers to sort
+  - Visual arrow indicators show sort direction (ascending/descending)
+  - Optimized column widths: Name (25%), Description (35%), State (10%), Dates (15% each)
 - **Text Filter**: Real-time search across flow names and descriptions
 - **Action Buttons**:
-  - **Export CSV**: Download flow list as a CSV file
   - **Copy CSV**: Copy flow list to clipboard in CSV format
-  - **Copy Mermaid**: Copy all flows as Mermaid diagrams in Markdown format
-- **Flow Selection**: Click any flow name to open the detailed view
+  - **Copy Markdown**: Copy flow list as a Markdown table with flow details
+  - **Export CSV**: Download flow list as a CSV file
+- **Flow Selection**: Click any row to open the detailed view in a side drawer (80% viewport width, max 1400px)
 
-#### Flow Detail View
+#### Flow Detail View (Drawer)
 
-- **Flow Information**: Name, description, workflow ID, state, creation and modification dates
-- **View Mode Tabs**:
-  - **Diagram**: Interactive Mermaid flowchart with modern styling
-  - **Mermaid Code**: View and copy the raw Mermaid syntax
+- **Flow Information**:
+  - Flow name displayed in drawer header
+  - State, Workflow ID, Created On, Modified On in fixed details section
+- **View Mode Tabs** (combined with context-aware controls in single row):
+  - **Diagram**: Interactive Mermaid flowchart with modern styling and zoom controls
+  - **Mermaid Code**: View and copy the raw Mermaid syntax (formatted with line breaks after semicolons)
   - **JSON**: Inspect the complete flow definition
-- **Export SVG Button**: Download the diagram as an SVG file (available in Diagram view)
+- **Context-Aware Controls**:
+  - **Diagram View**: Zoom slider (50%-1000%), +/- buttons, reset button, Copy SVG button, Export SVG button
+  - **Mermaid View**: Copy to Clipboard button
+  - **JSON View**: Copy to Clipboard button
+- **Mouse Wheel Zoom**: Hold Ctrl (Windows/Linux) or Cmd (Mac) and scroll to zoom in/out
+- **Scrollable Content**: Only the diagram/code/JSON area scrolls, header and controls remain fixed
 
 #### Event Log
 
@@ -311,9 +331,11 @@ window.toolboxAPI.onToolboxEvent((event, payload) => {
 
 - **exportFlowDefinitionsToCSV**: Export flow list to CSV file
 - **copyFlowDefinitionsAsCSV**: Copy flow list as CSV to clipboard
-- **copyFlowDefinitionsAsMermaid**: Copy flows as Mermaid diagrams in Markdown format
+- **copyFlowDefinitionsAsMarkdown**: Copy flows as Markdown table format
+- **handleExportSVG**: Export individual flow diagram as SVG file
+- **handleCopySVG**: Copy individual flow diagram as SVG to clipboard
 
-All export functions support optional notifications for user feedback.
+All export functions support optional notifications for user feedback and use the Power Platform Toolbox API for file operations and clipboard access.
 
 ### Flow Visualization
 

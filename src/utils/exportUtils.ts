@@ -22,7 +22,9 @@ export const exportFlowDefinitionsToCSV = async (
 
   try {
     const csvContent = generateFlowDefinitionsCSVContent(flows);
-    const defaultFilename = `flow_definitions_${new Date().toISOString().split('T')[0]}.csv`;
+    const defaultFilename = `flow_definitions_${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
 
     await window.toolboxAPI.utils.saveFile(defaultFilename, csvContent);
 
@@ -86,9 +88,9 @@ export const copyFlowDefinitionsAsCSV = async (
 };
 
 /**
- * Copies flow definitions to clipboard as Mermaid diagrams
+ * Copies flow definitions to clipboard as Markdown table
  */
-export const copyFlowDefinitionsAsMermaid = async (
+export const copyFlowDefinitionsAsMarkdown = async (
   flows: FLowDefinition[],
   showNotification?: ShowNotificationFn
 ): Promise<void> => {
@@ -98,30 +100,17 @@ export const copyFlowDefinitionsAsMermaid = async (
   }
 
   try {
-    let mermaidContent = "";
-    
-    flows.forEach((flow, index) => {
-      if (flow.clientdata) {
-        mermaidContent += `## ${flow.name}\n\n`;
-        mermaidContent += "```mermaid\n";
-        mermaidContent += convertToMermaid(flow.clientdata);
-        mermaidContent += "\n```\n\n";
-        
-        if (index < flows.length - 1) {
-          mermaidContent += "---\n\n";
-        }
-      }
-    });
+    const markdownContent = generateFlowDefinitionsMarkdownContent(flows);
 
-    await window.toolboxAPI.utils.copyToClipboard(mermaidContent);
+    await window.toolboxAPI.utils.copyToClipboard(markdownContent);
 
     logger.success(
-      `Copied ${flows.length} flow definitions to clipboard (Mermaid)`
+      `Copied ${flows.length} flow definitions to clipboard (Markdown)`
     );
     if (showNotification) {
       await showNotification(
         "Copy Successful",
-        `Copied ${flows.length} flow definitions to clipboard as Mermaid`,
+        `Copied ${flows.length} flow definitions to clipboard as Markdown`,
         "success"
       );
     }
@@ -152,7 +141,12 @@ function generateFlowDefinitionsCSVContent(flows: FLowDefinition[]): string {
   const csvRows = [headers.join(",")];
 
   flows.forEach((flow) => {
-    const stateText = flow.statecode === 0 ? "Draft" : flow.statecode === 1 ? "Active" : "Inactive";
+    const stateText =
+      flow.statecode === 0
+        ? "Draft"
+        : flow.statecode === 1
+        ? "Active"
+        : "Inactive";
     const row = [
       `"${flow.workflowid.replace(/"/g, '""')}"`,
       `"${flow.name.replace(/"/g, '""')}"`,
@@ -165,4 +159,37 @@ function generateFlowDefinitionsCSVContent(flows: FLowDefinition[]): string {
   });
 
   return csvRows.join("\n");
+}
+
+/**
+ * Generates Markdown table content from flow definitions
+ */
+function generateFlowDefinitionsMarkdownContent(
+  flows: FLowDefinition[]
+): string {
+  let markdown = "# Flow Definitions\n\n";
+
+  // Table header
+  markdown += "| Name | Description | State | Created On | Modified On |\n";
+  markdown += "|------|-------------|-------|------------|-------------|\n";
+
+  // Table rows
+  flows.forEach((flow) => {
+    const stateText =
+      flow.statecode === 0
+        ? "Draft"
+        : flow.statecode === 1
+        ? "Active"
+        : "Inactive";
+    const name = flow.name.replace(/\|/g, "\\|");
+    const description = (flow.description || "")
+      .replace(/\|/g, "\\|")
+      .replace(/\n/g, " ");
+    const createdOn = new Date(flow.createdon).toLocaleDateString();
+    const modifiedOn = new Date(flow.modifiedon).toLocaleDateString();
+
+    markdown += `| ${name} | ${description} | ${stateText} | ${createdOn} | ${modifiedOn} |\n`;
+  });
+
+  return markdown;
 }

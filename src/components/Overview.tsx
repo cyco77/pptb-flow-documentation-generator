@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { loadFlowDefinitions } from "../services/dataverseService";
 import { FlowDetails } from "./FlowDetails";
 import {
-  Divider,
   makeStyles,
   Spinner,
   Table,
@@ -18,19 +17,26 @@ import {
   Input,
   Button,
   tokens,
+  Drawer,
+  DrawerBody,
+  DrawerHeader,
+  DrawerHeaderTitle,
 } from "@fluentui/react-components";
 import {
   Search20Regular,
   ArrowDownload24Regular,
   Copy24Regular,
   DocumentTable24Regular,
+  ArrowUp16Regular,
+  ArrowDown16Regular,
+  Dismiss24Regular,
 } from "@fluentui/react-icons";
 import { logger } from "../services/loggerService";
 import { FLowDefinition } from "../types/flowDefinition";
 import {
   exportFlowDefinitionsToCSV,
   copyFlowDefinitionsAsCSV,
-  copyFlowDefinitionsAsMermaid,
+  copyFlowDefinitionsAsMarkdown,
 } from "../utils/exportUtils";
 
 interface IOverviewProps {
@@ -49,6 +55,11 @@ export const Overview: React.FC<IOverviewProps> = ({
   const [isLoadingFlowDefinitions, setIsLoadingFlowDefinitons] =
     useState(false);
   const [filterText, setFilterText] = useState<string>("");
+  const [sortState, setSortState] = useState<{
+    sortColumn: keyof FLowDefinition | undefined;
+    sortDirection: "ascending" | "descending";
+  }>({ sortColumn: "name", sortDirection: "ascending" });
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const useStyles = makeStyles({
     loadingContainer: {
@@ -59,11 +70,30 @@ export const Overview: React.FC<IOverviewProps> = ({
     },
     tableContainer: {
       overflowX: "auto",
+      position: "relative",
     },
     clickableRow: {
       cursor: "pointer",
       "&:hover": {
         backgroundColor: "var(--colorNeutralBackground1Hover)",
+      },
+    },
+    sortableHeader: {
+      cursor: "pointer",
+      userSelect: "none",
+      "&:hover": {
+        backgroundColor: tokens.colorNeutralBackground1Hover,
+      },
+    },
+    resizer: {
+      cursor: "col-resize",
+      position: "absolute",
+      right: "0",
+      top: "0",
+      bottom: "0",
+      width: "4px",
+      "&:hover": {
+        backgroundColor: tokens.colorBrandBackground,
       },
     },
     filterContainer: {
@@ -80,6 +110,10 @@ export const Overview: React.FC<IOverviewProps> = ({
     buttonGroup: {
       display: "flex",
       gap: tokens.spacingHorizontalS,
+    },
+    drawer: {
+      width: "80vw",
+      maxWidth: "1400px",
     },
   });
 
@@ -144,6 +178,7 @@ export const Overview: React.FC<IOverviewProps> = ({
   const handleRowClick = (flow: FLowDefinition) => {
     logger.info(`Selected flow: ${flow.name}`);
     setSelectedFlow(flow);
+    setIsDrawerOpen(true);
   };
 
   // Filter flows based on search text
@@ -161,10 +196,59 @@ export const Overview: React.FC<IOverviewProps> = ({
     );
   }, [flowDefinitions, filterText]);
 
-  const sortedFlows = useMemo(
-    () => [...filteredFlows].sort((a, b) => a.name.localeCompare(b.name)),
-    [filteredFlows]
-  );
+  const sortedFlows = useMemo(() => {
+    if (!sortState.sortColumn) {
+      return filteredFlows;
+    }
+
+    return [...filteredFlows].sort((a, b) => {
+      const column = sortState.sortColumn!;
+      let aValue = a[column];
+      let bValue = b[column];
+
+      // Handle dates
+      if (column === "createdon" || column === "modifiedon") {
+        aValue = new Date(aValue as Date).getTime();
+        bValue = new Date(bValue as Date).getTime();
+      }
+
+      // Handle null/undefined
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+
+      // Compare values
+      let comparison = 0;
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        comparison = aValue.localeCompare(bValue);
+      } else if (typeof aValue === "number" && typeof bValue === "number") {
+        comparison = aValue - bValue;
+      } else {
+        comparison = String(aValue).localeCompare(String(bValue));
+      }
+
+      return sortState.sortDirection === "ascending" ? comparison : -comparison;
+    });
+  }, [filteredFlows, sortState]);
+
+  const handleSort = useCallback((column: keyof FLowDefinition) => {
+    setSortState((prev) => ({
+      sortColumn: column,
+      sortDirection:
+        prev.sortColumn === column && prev.sortDirection === "ascending"
+          ? "descending"
+          : "ascending",
+    }));
+  }, []);
+
+  const getSortIcon = (column: keyof FLowDefinition) => {
+    if (sortState.sortColumn !== column) return null;
+    return sortState.sortDirection === "ascending" ? (
+      <ArrowUp16Regular />
+    ) : (
+      <ArrowDown16Regular />
+    );
+  };
 
   // Export handlers
   const handleExport = useCallback(async () => {
@@ -175,8 +259,8 @@ export const Overview: React.FC<IOverviewProps> = ({
     await copyFlowDefinitionsAsCSV(sortedFlows, showNotification);
   }, [sortedFlows, showNotification]);
 
-  const handleCopyMermaid = useCallback(async () => {
-    await copyFlowDefinitionsAsMermaid(sortedFlows, showNotification);
+  const handleCopyMarkdown = useCallback(async () => {
+    await copyFlowDefinitionsAsMarkdown(sortedFlows, showNotification);
   }, [sortedFlows, showNotification]);
 
   return (
@@ -207,10 +291,10 @@ export const Overview: React.FC<IOverviewProps> = ({
               <Button
                 appearance="secondary"
                 icon={<DocumentTable24Regular />}
-                onClick={handleCopyMermaid}
+                onClick={handleCopyMarkdown}
                 disabled={sortedFlows.length === 0}
               >
-                Copy Mermaid
+                Copy Markdown
               </Button>
               <Button
                 appearance="primary"
@@ -223,14 +307,84 @@ export const Overview: React.FC<IOverviewProps> = ({
             </div>
           </div>
           <div className={styles.tableContainer}>
-            <Table>
+            <Table size="small" style={{ minWidth: "100%" }}>
               <TableHeader>
                 <TableRow>
-                  <TableHeaderCell>Name</TableHeaderCell>
-                  <TableHeaderCell>Description</TableHeaderCell>
-                  <TableHeaderCell>State</TableHeaderCell>
-                  <TableHeaderCell>Created On</TableHeaderCell>
-                  <TableHeaderCell>Modified On</TableHeaderCell>
+                  <TableHeaderCell
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort("name")}
+                    style={{ width: "25%", minWidth: "200px" }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      Name {getSortIcon("name")}
+                    </div>
+                  </TableHeaderCell>
+                  <TableHeaderCell
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort("description")}
+                    style={{ width: "35%", minWidth: "200px" }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      Description {getSortIcon("description")}
+                    </div>
+                  </TableHeaderCell>
+                  <TableHeaderCell
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort("statecode")}
+                    style={{ width: "10%", minWidth: "100px" }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      State {getSortIcon("statecode")}
+                    </div>
+                  </TableHeaderCell>
+                  <TableHeaderCell
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort("createdon")}
+                    style={{ width: "15%", minWidth: "120px" }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      Created On {getSortIcon("createdon")}
+                    </div>
+                  </TableHeaderCell>
+                  <TableHeaderCell
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort("modifiedon")}
+                    style={{ width: "15%", minWidth: "120px" }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      Modified On {getSortIcon("modifiedon")}
+                    </div>
+                  </TableHeaderCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -242,8 +396,8 @@ export const Overview: React.FC<IOverviewProps> = ({
                       className={styles.clickableRow}
                       onClick={() => handleRowClick(flow)}
                     >
-                      <TableCell>
-                        <TableCellLayout>
+                      <TableCell style={{ width: "25%" }}>
+                        <TableCellLayout truncate>
                           <Link
                             onClick={(e) => {
                               e.stopPropagation();
@@ -254,26 +408,29 @@ export const Overview: React.FC<IOverviewProps> = ({
                           </Link>
                         </TableCellLayout>
                       </TableCell>
-                      <TableCell>
-                        <TableCellLayout>
+                      <TableCell style={{ width: "35%" }}>
+                        <TableCellLayout
+                          truncate
+                          title={flow.description || "-"}
+                        >
                           <Text>{flow.description || "-"}</Text>
                         </TableCellLayout>
                       </TableCell>
-                      <TableCell>
+                      <TableCell style={{ width: "10%" }}>
                         <TableCellLayout>
                           <Badge appearance="filled" color={state.color}>
                             {state.text}
                           </Badge>
                         </TableCellLayout>
                       </TableCell>
-                      <TableCell>
+                      <TableCell style={{ width: "15%" }}>
                         <TableCellLayout>
                           <Text>
                             {new Date(flow.createdon).toLocaleDateString()}
                           </Text>
                         </TableCellLayout>
                       </TableCell>
-                      <TableCell>
+                      <TableCell style={{ width: "15%" }}>
                         <TableCellLayout>
                           <Text>
                             {new Date(flow.modifiedon).toLocaleDateString()}
@@ -289,9 +446,34 @@ export const Overview: React.FC<IOverviewProps> = ({
         </div>
       )}
 
-      <Divider />
+      <Drawer
+        type="overlay"
+        separator
+        open={isDrawerOpen}
+        onOpenChange={(_, { open }) => setIsDrawerOpen(open)}
+        position="end"
+        size="large"
+        style={{ width: "80vw", maxWidth: "1400px" }}
+      >
+        <DrawerHeader>
+          <DrawerHeaderTitle
+            action={
+              <Button
+                appearance="subtle"
+                aria-label="Close"
+                icon={<Dismiss24Regular />}
+                onClick={() => setIsDrawerOpen(false)}
+              />
+            }
+          >
+            {selectedFlow?.name || "Flow Details"}
+          </DrawerHeaderTitle>
+        </DrawerHeader>
 
-      <FlowDetails flow={selectedFlow} isDarkMode={isDarkMode} />
+        <DrawerBody>
+          <FlowDetails flow={selectedFlow} isDarkMode={isDarkMode} />
+        </DrawerBody>
+      </Drawer>
     </>
   );
 };

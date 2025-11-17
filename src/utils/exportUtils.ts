@@ -1,6 +1,5 @@
 import { FLowDefinition } from "../types/flowDefinition";
 import { logger } from "../services/loggerService";
-import { convertToMermaid } from "./Flow2MermaidConverter";
 
 type ShowNotificationFn = (
   title: string,

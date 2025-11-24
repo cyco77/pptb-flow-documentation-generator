@@ -31,7 +31,11 @@
     "dev": "vite",
     "watch": "vite build --watch",
     "preview": "vite preview",
-    "finalize-package": "npm shrinkwrap"
+    "finalize-package": "npm shrinkwrap",
+    "release:patch": "npm version patch",
+    "release:minor": "npm version minor",
+    "release:major": "npm version major",
+    "release:publish": "npm publish"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.72.7",

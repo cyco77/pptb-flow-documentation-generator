@@ -1,10 +1,27 @@
 {
   "name": "@cyco77/pptb-flow-documentation-generator",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "displayName": "Flow Documentation Generator",
   "description": "A Power Platform Toolbox (PPTB) extension for exploring, visualizing, and documenting Power Automate Cloud Flows. Features interactive Mermaid diagram generation, multiple export formats (SVG, CSV, Markdown), advanced filtering, zoom controls, and seamless light/dark theme support.",
   "main": "index.html",
   "author": "Lars Hildebrandt",
+  "contributors": [
+    {
+      "name": "Lars Hildebrandt",
+      "url": "https://github.com/cyco77"
+    }
+  ],
+  "cspExceptions": {
+    "connect-src": [
+      "https://*.dynamics.com"
+    ]
+  },
+  "configurations": {
+    "repository": "https://github.com/cyco77/pptb-flow-documentation-generator",
+    "website": "https://github.com/cyco77/pptb-flow-documentation-generator",
+    "iconUrl": "https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/refs/heads/main/icon/flow-documentation_logo.png",
+    "readmeUrl": "https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/refs/heads/main/README.md"
+  },
   "license": "MIT",
   "icon": "https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/refs/heads/main/icon/flow-documentation_logo.png",
   "repository": {

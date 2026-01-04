@@ -11,11 +11,7 @@
       "url": "https://github.com/cyco77"
     }
   ],
-  "cspExceptions": {
-    "connect-src": [
-      "https://*.dynamics.com"
-    ]
-  },
+  "cspExceptions": {},
   "configurations": {
     "repository": "https://github.com/cyco77/pptb-flow-documentation-generator",
     "website": "https://github.com/cyco77/pptb-flow-documentation-generator",

@@ -1,7 +1,7 @@
 # Flow Documentation Generator
 
 <p align="center">
-  <img src="icon/flow-documentation_small.png" alt="Flow Documentation Generator Logo" width="314" height="150">
+  <img src="https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/main/icon/flow-documentation_small.png" alt="Flow Documentation Generator Logo" width="314" height="150">
 </p>
 
 <p align="center">
@@ -12,11 +12,11 @@
 
 ### Dark Theme
 
-![Plugin Documentation Generator - Dark Theme](screenshots/main_dark.png)
+![Plugin Documentation Generator - Dark Theme](https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/main/screenshots/main_dark.png)
 
 ### Light Theme
 
-![Plugin Documentation Generator - Light Theme](screenshots/main_light.png)
+![Plugin Documentation Generator - Light Theme](https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/main/screenshots/main_light.png)
 
 ## Features
 

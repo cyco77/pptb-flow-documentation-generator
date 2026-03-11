@@ -201,7 +201,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
         // Render the diagram
         const { svg } = await mermaid.render(
           `mermaid-${flow.workflowid}-${Date.now()}`,
-          mermaidSyntax
+          mermaidSyntax,
         );
 
         if (mermaidRef.current) {
@@ -316,7 +316,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       const filename = `${flow.name.replace(/[^a-z0-9]/gi, "_")}_diagram.svg`;
 
       try {
-        await window.toolboxAPI.utils.saveFile(filename, svgString);
+        await window.toolboxAPI.fileSystem.saveFile(filename, svgString);
 
         logger.success(`Exported diagram as ${filename}`);
         await window.toolboxAPI.utils.showNotification({
@@ -412,8 +412,8 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
             {flow.statecode === 0
               ? "Draft"
               : flow.statecode === 1
-              ? "Active"
-              : "Inactive"}
+                ? "Active"
+                : "Inactive"}
           </Text>
 
           <Text className={styles.label}>Workflow ID:</Text>

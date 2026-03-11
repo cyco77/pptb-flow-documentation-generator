@@ -4,7 +4,7 @@ import { logger } from "../services/loggerService";
 type ShowNotificationFn = (
   title: string,
   body: string,
-  type: "success" | "info" | "warning" | "error"
+  type: "success" | "info" | "warning" | "error",
 ) => Promise<void>;
 
 /**
@@ -12,7 +12,7 @@ type ShowNotificationFn = (
  */
 export const exportFlowDefinitionsToCSV = async (
   flows: FLowDefinition[],
-  showNotification?: ShowNotificationFn
+  showNotification?: ShowNotificationFn,
 ): Promise<void> => {
   if (!flows || flows.length === 0) {
     logger.warning("No flow definitions to export");
@@ -25,14 +25,14 @@ export const exportFlowDefinitionsToCSV = async (
       new Date().toISOString().split("T")[0]
     }.csv`;
 
-    await window.toolboxAPI.utils.saveFile(defaultFilename, csvContent);
+    await window.toolboxAPI.fileSystem.saveFile(defaultFilename, csvContent);
 
     logger.success(`Exported ${flows.length} flow definitions`);
     if (showNotification) {
       await showNotification(
         "Export Successful",
         `Exported ${flows.length} flow definitions to ${defaultFilename}`,
-        "success"
+        "success",
       );
     }
   } catch (error) {
@@ -41,7 +41,7 @@ export const exportFlowDefinitionsToCSV = async (
       await showNotification(
         "Export Failed",
         `Error exporting data: ${(error as Error).message}`,
-        "error"
+        "error",
       );
     }
   }
@@ -52,7 +52,7 @@ export const exportFlowDefinitionsToCSV = async (
  */
 export const copyFlowDefinitionsAsCSV = async (
   flows: FLowDefinition[],
-  showNotification?: ShowNotificationFn
+  showNotification?: ShowNotificationFn,
 ): Promise<void> => {
   if (!flows || flows.length === 0) {
     logger.warning("No flow definitions to copy");
@@ -65,13 +65,13 @@ export const copyFlowDefinitionsAsCSV = async (
     await window.toolboxAPI.utils.copyToClipboard(csvContent);
 
     logger.success(
-      `Copied ${flows.length} flow definitions to clipboard (CSV)`
+      `Copied ${flows.length} flow definitions to clipboard (CSV)`,
     );
     if (showNotification) {
       await showNotification(
         "Copy Successful",
         `Copied ${flows.length} flow definitions to clipboard as CSV`,
-        "success"
+        "success",
       );
     }
   } catch (error) {
@@ -80,7 +80,7 @@ export const copyFlowDefinitionsAsCSV = async (
       await showNotification(
         "Copy Failed",
         `Error copying to clipboard: ${(error as Error).message}`,
-        "error"
+        "error",
       );
     }
   }
@@ -91,7 +91,7 @@ export const copyFlowDefinitionsAsCSV = async (
  */
 export const copyFlowDefinitionsAsMarkdown = async (
   flows: FLowDefinition[],
-  showNotification?: ShowNotificationFn
+  showNotification?: ShowNotificationFn,
 ): Promise<void> => {
   if (!flows || flows.length === 0) {
     logger.warning("No flow definitions to copy");
@@ -104,13 +104,13 @@ export const copyFlowDefinitionsAsMarkdown = async (
     await window.toolboxAPI.utils.copyToClipboard(markdownContent);
 
     logger.success(
-      `Copied ${flows.length} flow definitions to clipboard (Markdown)`
+      `Copied ${flows.length} flow definitions to clipboard (Markdown)`,
     );
     if (showNotification) {
       await showNotification(
         "Copy Successful",
         `Copied ${flows.length} flow definitions to clipboard as Markdown`,
-        "success"
+        "success",
       );
     }
   } catch (error) {
@@ -119,7 +119,7 @@ export const copyFlowDefinitionsAsMarkdown = async (
       await showNotification(
         "Copy Failed",
         `Error copying to clipboard: ${(error as Error).message}`,
-        "error"
+        "error",
       );
     }
   }
@@ -144,8 +144,8 @@ function generateFlowDefinitionsCSVContent(flows: FLowDefinition[]): string {
       flow.statecode === 0
         ? "Draft"
         : flow.statecode === 1
-        ? "Active"
-        : "Inactive";
+          ? "Active"
+          : "Inactive";
     const row = [
       `"${flow.workflowid.replace(/"/g, '""')}"`,
       `"${flow.name.replace(/"/g, '""')}"`,
@@ -164,7 +164,7 @@ function generateFlowDefinitionsCSVContent(flows: FLowDefinition[]): string {
  * Generates Markdown table content from flow definitions
  */
 function generateFlowDefinitionsMarkdownContent(
-  flows: FLowDefinition[]
+  flows: FLowDefinition[],
 ): string {
   let markdown = "# Flow Definitions\n\n";
 
@@ -178,8 +178,8 @@ function generateFlowDefinitionsMarkdownContent(
       flow.statecode === 0
         ? "Draft"
         : flow.statecode === 1
-        ? "Active"
-        : "Inactive";
+          ? "Active"
+          : "Inactive";
     const name = flow.name.replace(/\|/g, "\\|");
     const description = (flow.description || "")
       .replace(/\|/g, "\\|")

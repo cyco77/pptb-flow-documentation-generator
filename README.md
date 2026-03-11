@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  A Power Platform Tool Box (PPTB) tool for viewing and documenting Power Automate Cloud Flows. This tool provides an intuitive interface to explore flow definitions, visualize them as interactive Mermaid diagrams, and export documentation in multiple formats.
+  A Power Platform Toolbox (PPTB) tool for viewing and documenting Power Automate Cloud Flows. This tool provides an intuitive interface to explore flow definitions, visualize them as interactive Mermaid diagrams, and export documentation in multiple formats.
 </p>
 
 ## Screenshots

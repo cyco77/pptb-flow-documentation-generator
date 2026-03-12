@@ -1,12 +1,12 @@
 {
   "name": "@cyco77/pptb-flow-documentation-generator",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
       "name": "@cyco77/pptb-flow-documentation-generator",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "license": "MIT",
       "dependencies": {
         "@fluentui/react-components": "^9.72.7",

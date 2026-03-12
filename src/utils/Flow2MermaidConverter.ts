@@ -1,27 +1,84 @@
-export const convertToMermaid = (json: string): string => {
+import { actionTypeColors } from "./flow2mermaid/constants";
+import { getActionDetails, getTriggerDetails } from "./flow2mermaid/details";
+import {
+  cleanStepName,
+  escapeStepName,
+  shortId,
+  translateTypeName,
+} from "./flow2mermaid/formatters";
+import { topologicalSort, translateIfExpression } from "./flow2mermaid/graph";
+import {
+  Action,
+  ActionsMap,
+  MermaidResult,
+  ProcessActionsResult,
+  Step,
+  Trigger,
+} from "./flow2mermaid/types";
+
+export type { MermaidResult } from "./flow2mermaid/types";
+
+export const convertToMermaid = (json: string): MermaidResult => {
+  const legend: Array<{ label: string; color: string; border: string }> = [
+    {
+      label: "Trigger",
+      color: actionTypeColors.Trigger.bg,
+      border: actionTypeColors.Trigger.border,
+    },
+    {
+      label: "If/Condition",
+      color: actionTypeColors.If.bg,
+      border: actionTypeColors.If.border,
+    },
+    {
+      label: "Switch",
+      color: actionTypeColors.Switch.bg,
+      border: actionTypeColors.Switch.border,
+    },
+    {
+      label: "Foreach",
+      color: actionTypeColors.Foreach.bg,
+      border: actionTypeColors.Foreach.border,
+    },
+    {
+      label: "Terminate",
+      color: actionTypeColors.Terminate.bg,
+      border: actionTypeColors.Terminate.border,
+    },
+    {
+      label: "Action",
+      color: actionTypeColors.Default.bg,
+      border: actionTypeColors.Default.border,
+    },
+  ];
+
   try {
     const flow = JSON.parse(json);
-
     const triggers = flow.properties.definition.triggers;
     const [triggerName] = Object.keys(triggers);
     const triggerDetails = triggers[triggerName] as Trigger;
-
     const actionMap: ActionsMap = flow.properties.definition.actions;
 
-    var mermaid = `graph TD;`;
+    let mermaid = "graph TD;\n";
     mermaid += `${cleanStepName(triggerName)}["Trigger: ${escapeStepName(
       triggerName
-    )}<br/>Type: ${triggerDetails.type}"];`;
-    const processActionsReuslt = processActions(actionMap, {
+    )}<br/>Type: ${translateTypeName(triggerDetails.type)}${getTriggerDetails(
+      triggerDetails
+    )}"]:::Trigger;\n`;
+    mermaid += `style ${cleanStepName(triggerName)} fill:${actionTypeColors.Trigger.bg},stroke:${actionTypeColors.Trigger.border},stroke-width:2px;\n`;
+
+    const processActionsResult = processActions(actionMap, {
       name: cleanStepName(triggerName),
       action: undefined,
+      type: "Trigger",
     });
-    mermaid += `${processActionsReuslt.mermaid}`;
 
-    return mermaid;
+    mermaid += processActionsResult.mermaid;
+
+    return { diagram: mermaid, legend };
   } catch (error) {
     console.error("Error parsing JSON:", error);
-    return "Error parsing JSON";
+    return { diagram: "Error parsing JSON", legend: [] };
   }
 };
 
@@ -31,319 +88,240 @@ const processActions = (
   label: string | undefined = undefined
 ): ProcessActionsResult => {
   let mermaid = "";
-
   const sorted = topologicalSort(actions);
 
-  for (let index = 0; index < sorted.length; index++) {
-    const element = sorted[index];
-
+  for (const element of sorted) {
     const elementCleanName = cleanStepName(element);
-
     const action = actions[element];
 
     if (action.type === "Switch" && action.cases) {
-      const id = shortId();
-
-      const switchStepStart = `Switch_Start_${id}`;
-      const switchEndStep = `Switch_End_${id}`;
-
-      if (previousStep.name) {
-        mermaid += `${previousStep.name} --> ${switchStepStart}["Switch - Start<br/>${action.expression}"];`;
-      } else {
-        mermaid += `${switchStepStart}["Switch - Start<br/>${action.expression}"];`;
-      }
-
-      Object.entries(action.cases).forEach(([caseName, caseAction]) => {
-        const caseStepName = caseAction.case || caseName;
-        if (caseAction.actions) {
-          const processActionsResult = processActions(
-            caseAction.actions,
-            { name: switchStepStart, action: undefined },
-            caseStepName
-          );
-          mermaid += processActionsResult.mermaid;
-          mermaid += `${processActionsResult.lastStep} --> ${switchEndStep}["Switch - End"];`;
-        }
-      });
-
-      previousStep = { name: switchEndStep, action: undefined };
-    } else if (action.type === "If") {
-      const id = shortId();
-
-      const conditionStepStart = `Condition_Start_${id}`;
-      const conditionEndStep = `Condition_End_${id}`;
-
-      if (previousStep.name) {
-        mermaid += `${previousStep.name} --> ${
-          label ? "|" + label + "|" : ""
-        }${conditionStepStart}["Condition - Start<br/>${translateIfExpression(
-          action.expression
-        )}"];`;
-      } else {
-        mermaid += `${conditionStepStart}["Condition - Start<br/>${translateIfExpression(
-          action.expression
-        )}"];`;
-      }
-
-      if (action.actions) {
-        const processActionsResult = processActions(
-          action.actions,
-          { name: conditionStepStart, action: undefined },
-          "true"
-        );
-        mermaid += processActionsResult.mermaid;
-        if (processActionsResult.lastStep) {
-          mermaid += `${processActionsResult.lastStep} --> ${conditionEndStep}["Condition - End"];`;
-        }
-      } else {
-        // no actions defined
-        mermaid += `${conditionStepStart} --> |true|${conditionEndStep}["Condition - End"];`;
-      }
-      if (action.else?.actions) {
-        const processActionsResult = processActions(
-          action.else.actions,
-          { name: conditionStepStart, action: undefined },
-          "false"
-        );
-        mermaid += processActionsResult.mermaid;
-        if (processActionsResult.lastStep) {
-          mermaid += `${processActionsResult.lastStep} --> ${conditionEndStep}["Condition - End"];`;
-        }
-      } else {
-        // no else defined
-        mermaid += `${conditionStepStart} --> |false|${conditionEndStep}["Condition - End"];`;
-      }
-
-      previousStep = { name: conditionEndStep, action: undefined };
-    } else if (action.type === "Foreach" && action.actions) {
-      const id = shortId();
-
-      const foreachStepStart = `Foreach_Start_${id}`;
-
-      if (previousStep.name) {
-        mermaid += `${previousStep.name} --> ${
-          label ? "|" + label + "|" : ""
-        }${foreachStepStart};`;
-      } else {
-        mermaid += `${foreachStepStart};`;
-      }
-
-      mermaid += `subgraph ${foreachStepStart}["${
-        action.type
-      }: ${escapeStepName(element)}"];`;
-
+      const result = renderSwitchAction(action, previousStep, label);
+      mermaid += result.mermaid;
+      previousStep = result.previousStep;
       label = undefined;
-
-      const processActionsResult = processActions(action.actions, {
-        name: undefined,
-        action: action,
-      });
-      mermaid += processActionsResult.mermaid;
-      mermaid += `end;`;
-
-      previousStep = { name: foreachStepStart, action: undefined };
-    } else if (action.actions) {
-      if (previousStep.name) {
-        mermaid += `${cleanStepName(previousStep.name)} --> ${
-          label ? "|" + label + "|" : ""
-        }${elementCleanName}["${action.type}: ${escapeStepName(element)}"];`;
-      } else {
-        mermaid += `${label ? "|" + label + "|" : ""}${elementCleanName}["${
-          action.type
-        }: ${escapeStepName(element)}];`;
-      }
-
-      label = undefined;
-
-      const processActionsResult = processActions(action.actions, {
-        name: elementCleanName,
-        action: action,
-      });
-      mermaid += processActionsResult.mermaid;
-
-      previousStep = { name: processActionsResult.lastStep, action: undefined };
-    } else if (action.type === "Terminate") {
-      if (previousStep.name) {
-        mermaid += `${cleanStepName(previousStep.name)} --> ${
-          label ? "|" + label + "|" : ""
-        }${elementCleanName}["${action.type}: ${escapeStepName(element)}"];`;
-      } else {
-        mermaid += `${label ? "|" + label + "|" : ""}${elementCleanName}["${
-          action.type
-        }: ${escapeStepName(element)}"];`;
-      }
-      previousStep = { name: undefined, action: undefined };
-    } else {
-      if (previousStep.name) {
-        mermaid += `${cleanStepName(previousStep.name)} --> ${
-          label ? "|" + label + "|" : ""
-        }${elementCleanName}["${action.type}: ${escapeStepName(element)}"];`;
-      } else {
-        mermaid += `${label ? "|" + label + "|" : ""}${elementCleanName}["${
-          action.type
-        }: ${escapeStepName(element)}"];`;
-      }
-      previousStep = { name: elementCleanName, action: action };
-
-      label = undefined;
+      continue;
     }
+
+    if (action.type === "If") {
+      const result = renderIfAction(action, previousStep, label);
+      mermaid += result.mermaid;
+      previousStep = result.previousStep;
+      label = undefined;
+      continue;
+    }
+
+    if (action.type === "Foreach" && action.actions) {
+      const result = renderForeachAction(action, element, previousStep, label);
+      mermaid += result.mermaid;
+      previousStep = result.previousStep;
+      label = undefined;
+      continue;
+    }
+
+    const result = renderStandardAction(
+      action,
+      element,
+      elementCleanName,
+      previousStep,
+      label
+    );
+    mermaid += result.mermaid;
+    previousStep = result.previousStep;
+    label = undefined;
   }
 
   return { mermaid, lastStep: previousStep.name };
 };
 
-function shortId() {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
-}
+const renderSwitchAction = (
+  action: Action,
+  previousStep: Step,
+  label: string | undefined
+): { mermaid: string; previousStep: Step } => {
+  const id = shortId();
+  const switchStepStart = `Switch_Start_${id}`;
+  const switchEndStep = `Switch_End_${id}`;
+  let mermaid = "";
 
-function translateIfExpression(expression: ExpressionMap | undefined): string {
-  if (!expression) return "";
-
-  const processInner = (values: any): string => {
-    return Object.entries(values)
-      .map(([name, map]) =>
-        Object.entries(map as [])
-          .map(([innerName, innerValues]) => {
-            try {
-              return `${innerName} => ${(innerValues as []).join(",")}<br/>`;
-            } catch (error) {
-              console.error(
-                `Error processing inner expression in :${name}`,
-                error
-              );
-              return "";
-            }
-          })
-          .join("")
-      )
-      .join("");
-  };
-
-  return Object.entries(expression)
-    .map(([expressionName, values]) => {
-      if (expressionName === "and" || expressionName === "or") {
-        return `${expressionName} => <br/>(` + processInner(values) + `)`;
-      }
-      try {
-        return `${expressionName} => ${(values as []).join(",")}<br/>`;
-      } catch (error) {
-        console.error("Error processing expression:", error);
-        return "";
-      }
-    })
-    .join("");
-}
-
-function cleanStepName(stepName: string | undefined): string {
-  if (!stepName) return "";
-
-  // Remove any unwanted characters or patterns from the step name
-  // For example, remove spaces and special characters
-  return stepName.replace(/[^a-zA-Z0-9_]/g, "_");
-}
-
-function escapeStepName(stepName: string | undefined): string {
-  if (!stepName) return "";
-
-  // Remove any unwanted characters or patterns from the step name
-  // For example, remove spaces and special characters
-  return stepName.replace(/"/g, "");
-}
-
-function topologicalSort(actions: ActionsMap): string[] {
-  const graph = new Map<string, Set<string>>();
-  const inDegree = new Map<string, number>();
-
-  // Initialize graph and in-degree
-  for (const actionName of Object.keys(actions)) {
-    graph.set(actionName, new Set());
-    inDegree.set(actionName, 0);
+  if (previousStep.name) {
+    mermaid += `${previousStep.name} --> ${switchStepStart}["Switch - Start<br/>${action.expression}"];`;
+  } else {
+    mermaid += `${label ? "|" + label + "|" : ""}${switchStepStart}["Switch - Start<br/>${action.expression}"];`;
   }
 
-  // Build graph from runAfter dependencies
-  for (const [actionName, action] of Object.entries(actions)) {
-    if (action.runAfter) {
-      for (const dep of Object.keys(action.runAfter)) {
-        graph.get(dep)?.add(actionName);
-        inDegree.set(actionName, (inDegree.get(actionName) || 0) + 1);
-      }
+  mermaid += `style ${switchStepStart} fill:${actionTypeColors.Switch.bg},stroke:${actionTypeColors.Switch.border},stroke-width:2px;`;
+
+  Object.entries(action.cases ?? {}).forEach(([caseName, caseAction]) => {
+    const caseStepName = caseAction.case || caseName;
+    if (caseAction.actions) {
+      const processActionsResult = processActions(
+        caseAction.actions,
+        { name: switchStepStart, action: undefined, type: "Switch" },
+        caseStepName
+      );
+      mermaid += processActionsResult.mermaid;
+      mermaid += `${processActionsResult.lastStep} --> ${switchEndStep}["Switch - End"];`;
+      mermaid += `style ${switchEndStep} fill:${actionTypeColors.Switch.bg},stroke:${actionTypeColors.Switch.border},stroke-width:2px;`;
     }
-  }
+  });
 
-  // Queue of actions with no dependencies
-  const queue: string[] = [];
-  for (const [actionName, degree] of inDegree.entries()) {
-    if (degree === 0) queue.push(actionName);
-  }
-
-  // Process the graph
-  const result: string[] = [];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    result.push(current);
-
-    for (const neighbor of graph.get(current) || []) {
-      inDegree.set(neighbor, (inDegree.get(neighbor) || 1) - 1);
-      if (inDegree.get(neighbor) === 0) {
-        queue.push(neighbor);
-      }
-    }
-  }
-
-  // If result doesn't include all actions, there’s a cycle
-  if (result.length !== Object.keys(actions).length) {
-    throw new Error("Cycle detected in action dependencies!");
-  }
-
-  return result;
-}
-
-interface Action {
-  runAfter?: Record<string, string[]>;
-  foreach?: string;
-  actions?: ActionsMap;
-  cases?: ActionsMap;
-  case?: string;
-  else?: Action;
-  expression?: ExpressionMap;
-  metadata: {
-    operationMetadataId: string;
+  return {
+    mermaid,
+    previousStep: { name: switchEndStep, action: undefined, type: "Switch" },
   };
-  type: string;
-  inputs?: any;
-}
-
-interface Trigger {
-  splitOn: string;
-  metadata: {
-    operationMetadataId: string;
-  };
-  type: string;
-  inputs: {
-    host: {
-      connectionName: string;
-      operationId: string;
-      apiId: string;
-    };
-    parameters: {
-      folderPath: string;
-      includeAttachments: boolean;
-      importance: string;
-      fetchOnlyWithAttachment: boolean;
-    };
-    authentication: string;
-  };
-}
-
-interface Step {
-  name: string | undefined;
-  action: Action | undefined;
-}
-
-type ProcessActionsResult = {
-  mermaid: string;
-  lastStep: string | undefined;
 };
 
-type ActionsMap = Record<string, Action>;
-type ExpressionMap = Record<string, []>;
+const renderIfAction = (
+  action: Action,
+  previousStep: Step,
+  label: string | undefined
+): { mermaid: string; previousStep: Step } => {
+  const id = shortId();
+  const conditionStepStart = `Condition_Start_${id}`;
+  const conditionEndStep = `Condition_End_${id}`;
+  let mermaid = "";
+
+  if (previousStep.name) {
+    mermaid += `${previousStep.name} --> ${
+      label ? "|" + label + "|" : ""
+    }${conditionStepStart}["Condition - Start<br/>${translateIfExpression(
+      action.expression
+    )}"];`;
+  } else {
+    mermaid += `${conditionStepStart}["Condition - Start<br/>${translateIfExpression(
+      action.expression
+    )}"];`;
+  }
+
+  mermaid += `style ${conditionStepStart} fill:${actionTypeColors.If.bg},stroke:${actionTypeColors.If.border},stroke-width:2px;`;
+
+  if (action.actions) {
+    const trueResult = processActions(
+      action.actions,
+      { name: conditionStepStart, action: undefined, type: "If" },
+      "true"
+    );
+    mermaid += trueResult.mermaid;
+    if (trueResult.lastStep) {
+      mermaid += `${trueResult.lastStep} --> ${conditionEndStep}["Condition - End"];`;
+      mermaid += `style ${conditionEndStep} fill:${actionTypeColors.If.bg},stroke:${actionTypeColors.If.border},stroke-width:2px;`;
+    }
+  } else {
+    mermaid += `${conditionStepStart} --> |true|${conditionEndStep}["Condition - End"];`;
+    mermaid += `style ${conditionEndStep} fill:${actionTypeColors.If.bg},stroke:${actionTypeColors.If.border},stroke-width:2px;`;
+  }
+
+  if (action.else?.actions) {
+    const falseResult = processActions(
+      action.else.actions,
+      { name: conditionStepStart, action: undefined, type: "If" },
+      "false"
+    );
+    mermaid += falseResult.mermaid;
+    if (falseResult.lastStep) {
+      mermaid += `${falseResult.lastStep} --> ${conditionEndStep}["Condition - End"];`;
+    }
+  } else {
+    mermaid += `${conditionStepStart} --> |false|${conditionEndStep}["Condition - End"];`;
+  }
+
+  return {
+    mermaid,
+    previousStep: { name: conditionEndStep, action: undefined, type: "If" },
+  };
+};
+
+const renderForeachAction = (
+  action: Action,
+  element: string,
+  previousStep: Step,
+  label: string | undefined
+): { mermaid: string; previousStep: Step } => {
+  const id = shortId();
+  const foreachStepStart = `Foreach_Start_${id}`;
+  let mermaid = "";
+
+  if (previousStep.name) {
+    mermaid += `${previousStep.name} --> ${
+      label ? "|" + label + "|" : ""
+    }${foreachStepStart};`;
+  } else {
+    mermaid += `${foreachStepStart};`;
+  }
+
+  mermaid += `style ${foreachStepStart} fill:${actionTypeColors.Foreach.bg},stroke:${actionTypeColors.Foreach.border},stroke-width:2px;`;
+  mermaid += `subgraph ${foreachStepStart}["${translateTypeName(action.type)}: ${escapeStepName(
+    element
+  )}"];`;
+
+  const processActionsResult = processActions(action.actions!, {
+    name: undefined,
+    action,
+    type: "Foreach",
+  });
+
+  mermaid += processActionsResult.mermaid;
+  mermaid += "end;";
+
+  return {
+    mermaid,
+    previousStep: { name: foreachStepStart, action: undefined, type: "Foreach" },
+  };
+};
+
+const renderStandardAction = (
+  action: Action,
+  element: string,
+  elementCleanName: string,
+  previousStep: Step,
+  label: string | undefined
+): { mermaid: string; previousStep: Step } => {
+  const actionDetails = getActionDetails(action);
+  const color =
+    action.type === "Terminate"
+      ? actionTypeColors.Terminate
+      : actionTypeColors[action.type] || actionTypeColors.Default;
+  const stepLabel = `${translateTypeName(action.type)}: ${escapeStepName(element)}${
+    actionDetails ? "<br/>" + actionDetails : ""
+  }`;
+
+  let mermaid = "";
+  if (previousStep.name) {
+    mermaid += `${cleanStepName(previousStep.name)} --> ${
+      label ? "|" + label + "|" : ""
+    }${elementCleanName}["${stepLabel}"];`;
+  } else {
+    mermaid += `${label ? "|" + label + "|" : ""}${elementCleanName}["${stepLabel}"];`;
+  }
+
+  mermaid += `style ${elementCleanName} fill:${color.bg},stroke:${color.border},stroke-width:2px;`;
+
+  if (action.actions) {
+    const processActionsResult = processActions(action.actions, {
+      name: elementCleanName,
+      action,
+      type: action.type,
+    });
+    mermaid += processActionsResult.mermaid;
+    return {
+      mermaid,
+      previousStep: {
+        name: processActionsResult.lastStep,
+        action: undefined,
+        type: action.type,
+      },
+    };
+  }
+
+  if (action.type === "Terminate") {
+    return {
+      mermaid,
+      previousStep: { name: undefined, action: undefined },
+    };
+  }
+
+  return {
+    mermaid,
+    previousStep: { name: elementCleanName, action, type: action.type },
+  };
+};

@@ -22,7 +22,10 @@ import {
   Copy24Regular,
 } from "@fluentui/react-icons";
 import { FLowDefinition } from "../types/flowDefinition";
-import { convertToMermaid } from "../utils/Flow2MermaidConverter";
+import {
+  convertToMermaid,
+  MermaidResult,
+} from "../utils/Flow2MermaidConverter";
 import { logger } from "../services/loggerService";
 import mermaid from "mermaid";
 
@@ -38,11 +41,19 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
   isDarkMode,
 }) => {
   const mermaidRef = useRef<HTMLDivElement>(null);
+  const jsonRef = useRef<HTMLPreElement>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("diagram");
   const [mermaidCode, setMermaidCode] = useState<string>("");
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [legend, setLegend] = useState<
+    Array<{ label: string; color: string; border: string }>
+  >([]);
+  const [zoomLevel, setZoomLevel] = useState<number>(0.5);
+  const [diagramSize, setDiagramSize] = useState({ width: 0, height: 0 });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatches, setSearchMatches] = useState<number[]>([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
 
   const useStyles = makeStyles({
     header: {
@@ -94,17 +105,22 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       padding: "20px",
     },
     diagramWrapper: {
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "flex-start",
       minHeight: "400px",
+      minWidth: "100%",
+    },
+    diagramCanvas: {
+      position: "relative",
+      flexShrink: 0,
+      marginLeft: "auto",
+      marginRight: "auto",
+      width: "fit-content",
     },
     codeBlock: {
       padding: "16px",
       backgroundColor: tokens.colorNeutralBackground1,
       borderRadius: tokens.borderRadiusSmall,
       overflow: "auto",
-      maxHeight: "calc(100vh - 330px)",
+      maxHeight: "calc(100vh - 370px)",
       fontFamily: "monospace",
       fontSize: "12px",
       whiteSpace: "pre",
@@ -120,6 +136,64 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       backgroundColor: tokens.colorPaletteRedBackground2,
       borderRadius: tokens.borderRadiusMedium,
       color: tokens.colorPaletteRedForeground1,
+    },
+    legendContainer: {
+      position: "absolute",
+      top: "70px",
+      left: "10px",
+      zIndex: 10,
+      backgroundColor: tokens.colorNeutralBackground1,
+      borderRadius: tokens.borderRadiusSmall,
+      padding: "8px 12px",
+      boxShadow: tokens.shadow4,
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px",
+    },
+    legendTitle: {
+      fontWeight: "600",
+      fontSize: "12px",
+      marginBottom: "4px",
+      color: tokens.colorNeutralForeground1,
+    },
+    legendItem: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      fontSize: "11px",
+    },
+    legendColorBox: {
+      width: "16px",
+      height: "16px",
+      borderRadius: "2px",
+      border: "2px solid",
+    },
+    searchContainer: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "8px 12px",
+      backgroundColor: tokens.colorNeutralBackground1,
+      borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+      position: "sticky",
+      top: 0,
+      zIndex: 10,
+    },
+    searchInput: {
+      flex: 1,
+      padding: "4px 8px",
+      borderRadius: tokens.borderRadiusSmall,
+      border: `1px solid ${tokens.colorNeutralStroke2}`,
+      fontSize: "12px",
+    },
+    searchMatchCount: {
+      fontSize: "12px",
+      color: tokens.colorNeutralForeground2,
+      whiteSpace: "nowrap",
+    },
+    searchButton: {
+      padding: "2px 8px",
+      fontSize: "12px",
     },
   });
 
@@ -185,7 +259,8 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
         setError(null);
 
         // Convert flow to mermaid syntax
-        const mermaidSyntax = convertToMermaid(flow.clientdata);
+        const result: MermaidResult = convertToMermaid(flow.clientdata);
+        const mermaidSyntax = result.diagram;
 
         if (mermaidSyntax === "Error parsing JSON") {
           setError("Failed to parse flow definition");
@@ -194,6 +269,9 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
 
         // Store mermaid code for display
         setMermaidCode(mermaidSyntax);
+
+        // Store legend data
+        setLegend(result.legend);
 
         // Clear previous content
         mermaidRef.current.innerHTML = "";
@@ -206,6 +284,21 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
 
         if (mermaidRef.current) {
           mermaidRef.current.innerHTML = svg;
+
+          const svgElement = mermaidRef.current.querySelector("svg");
+          if (svgElement) {
+            const viewBox = svgElement.viewBox?.baseVal;
+            const width =
+              viewBox && viewBox.width
+                ? viewBox.width
+                : svgElement.getBoundingClientRect().width;
+            const height =
+              viewBox && viewBox.height
+                ? viewBox.height
+                : svgElement.getBoundingClientRect().height;
+
+            setDiagramSize({ width, height });
+          }
         }
       } catch (err) {
         console.error("Error rendering diagram:", err);
@@ -218,16 +311,32 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
     renderDiagram();
   }, [flow, viewMode]);
 
+  useEffect(() => {
+    if (!mermaidRef.current) {
+      return;
+    }
+
+    const svgElement = mermaidRef.current.querySelector("svg");
+    if (!svgElement || !diagramSize.width || !diagramSize.height) {
+      return;
+    }
+
+    svgElement.style.width = `${diagramSize.width * zoomLevel}px`;
+    svgElement.style.height = `${diagramSize.height * zoomLevel}px`;
+    svgElement.style.maxWidth = "none";
+    svgElement.style.display = "block";
+  }, [zoomLevel, diagramSize]);
+
   const handleZoomIn = useCallback(() => {
-    setZoomLevel((prev) => Math.min(prev + 0.2, 10));
+    setZoomLevel((prev) => Math.min(prev + 0.1, 3));
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setZoomLevel((prev) => Math.max(prev - 0.2, 0.5));
+    setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
   }, []);
 
   const handleZoomReset = useCallback(() => {
-    setZoomLevel(1);
+    setZoomLevel(0.5);
   }, []);
 
   const handleCopyMermaid = useCallback(async () => {
@@ -262,6 +371,82 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
     }
   }, [flow]);
 
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (!query.trim() || !jsonRef.current) {
+      setSearchMatches([]);
+      setCurrentMatchIndex(0);
+      return;
+    }
+    const text = jsonRef.current.textContent || "";
+    const matches: number[] = [];
+    let idx = 0;
+    while ((idx = text.indexOf(query, idx)) !== -1) {
+      matches.push(idx);
+      idx += 1;
+    }
+    setSearchMatches(matches);
+    setCurrentMatchIndex(0);
+  }, []);
+
+  const highlightMatch = (index: number, query: string, matches: number[]) => {
+    if (!jsonRef.current || matches.length === 0) return;
+
+    const text = jsonRef.current;
+    const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT, null);
+    let charCount = 0;
+    let found = false;
+    let range: Range | null = null;
+    let node: Text | null;
+
+    while ((node = walker.nextNode() as Text | null)) {
+      const nodeLength = node.textContent?.length || 0;
+      if (charCount + nodeLength > matches[index]) {
+        const offset = matches[index] - charCount;
+        range = document.createRange();
+        range.setStart(node, offset);
+        range.setEnd(node, Math.min(offset + query.length, nodeLength));
+        found = true;
+        break;
+      }
+      charCount += nodeLength;
+    }
+
+    if (!found || !range) return;
+
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const rect = range.getBoundingClientRect();
+    const container = text.parentElement;
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const scrollTop = container.scrollTop;
+      const relativeTop = rect.top - containerRect.top;
+      container.scrollTop = scrollTop + relativeTop - 100;
+    }
+  };
+
+  const handleNextMatch = useCallback(() => {
+    if (searchMatches.length === 0) return;
+    const nextIndex = (currentMatchIndex + 1) % searchMatches.length;
+    setCurrentMatchIndex(nextIndex);
+    requestAnimationFrame(() => {
+      highlightMatch(nextIndex, searchQuery, searchMatches);
+    });
+  }, [searchMatches, currentMatchIndex, searchQuery]);
+
+  const handlePrevMatch = useCallback(() => {
+    if (searchMatches.length === 0) return;
+    const prevIndex =
+      (currentMatchIndex - 1 + searchMatches.length) % searchMatches.length;
+    setCurrentMatchIndex(prevIndex);
+    requestAnimationFrame(() => {
+      highlightMatch(prevIndex, searchQuery, searchMatches);
+    });
+  }, [searchMatches, currentMatchIndex, searchQuery]);
+
   // Add mouse wheel zoom functionality
   useEffect(() => {
     const diagramElement = mermaidRef.current?.parentElement;
@@ -275,7 +460,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
         setZoomLevel((prev) => {
           const newZoom = prev + delta;
-          return Math.max(0.5, Math.min(6, newZoom));
+          return Math.max(0.5, Math.min(3, newZoom));
         });
       }
     };
@@ -307,11 +492,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
         return;
       }
 
-      // Clone the SVG to avoid modifying the displayed one
-      const clonedSvg = svgElement.cloneNode(true) as SVGElement;
-
-      // Get the SVG as a string
-      const svgString = new XMLSerializer().serializeToString(clonedSvg);
+      const svgString = serializeSvg(svgElement);
 
       const filename = `${flow.name.replace(/[^a-z0-9]/gi, "_")}_diagram.svg`;
 
@@ -345,6 +526,59 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
     }
   }, [flow]);
 
+  const handleExportPNG = useCallback(async () => {
+    if (!mermaidRef.current || !flow) {
+      return;
+    }
+
+    try {
+      const svgElement = mermaidRef.current.querySelector("svg");
+
+      if (!svgElement) {
+        logger.error("No SVG element found to export as PNG");
+        await window.toolboxAPI.utils.showNotification({
+          title: "Export Failed",
+          body: "No diagram available to export",
+          type: "error",
+          duration: 3000,
+        });
+        return;
+      }
+
+      const svgString = serializeSvg(svgElement);
+      const pngBlob = await renderSvgToPngBlob(svgString);
+      const filename = `${flow.name.replace(/[^a-z0-9]/gi, "_")}_diagram.png`;
+      const url = URL.createObjectURL(pngBlob);
+
+      try {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        logger.success(`Exported diagram as ${filename}`);
+        await window.toolboxAPI.utils.showNotification({
+          title: "Export Successful",
+          body: `Diagram exported as ${filename}`,
+          type: "success",
+          duration: 3000,
+        });
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      logger.error(`Error exporting PNG: ${(error as Error).message}`);
+      await window.toolboxAPI.utils.showNotification({
+        title: "Export Failed",
+        body: `Error exporting diagram: ${(error as Error).message}`,
+        type: "error",
+        duration: 3000,
+      });
+    }
+  }, [flow]);
+
   const handleCopySVG = useCallback(async () => {
     if (!mermaidRef.current || !flow) {
       return;
@@ -365,18 +599,22 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
         return;
       }
 
-      // Clone the SVG to avoid modifying the displayed one
-      const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+      const svgString = serializeSvg(svgElement);
 
-      // Get the SVG as a string
-      const svgString = new XMLSerializer().serializeToString(clonedSvg);
-
-      await window.toolboxAPI.utils.copyToClipboard(svgString);
+      if (navigator.clipboard && "write" in navigator.clipboard) {
+        const pngBlob = await renderSvgToPngBlob(svgString);
+        const clipboardItem = new ClipboardItem({
+          "image/png": pngBlob,
+        });
+        await navigator.clipboard.write([clipboardItem]);
+      } else {
+        await window.toolboxAPI.utils.copyToClipboard(svgString);
+      }
 
       logger.success("Copied SVG to clipboard");
       await window.toolboxAPI.utils.showNotification({
         title: "Copy Successful",
-        body: "SVG diagram copied to clipboard",
+        body: "Diagram copied to clipboard",
         type: "success",
         duration: 3000,
       });
@@ -390,6 +628,61 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       });
     }
   }, [flow]);
+
+  const renderSvgToPngBlob = async (svgString: string): Promise<Blob> => {
+    const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+
+    const image = new Image();
+    image.decoding = "async";
+
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () =>
+        reject(new Error("Failed to render SVG for clipboard copy"));
+      image.src = url;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("Failed to create canvas context");
+    }
+
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0);
+
+    const pngBlob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/png");
+    });
+
+    if (!pngBlob) {
+      throw new Error("Failed to create PNG for clipboard copy");
+    }
+
+    return pngBlob;
+  };
+
+  const serializeSvg = (svgElement: SVGElement): string => {
+    const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
+    clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clonedSvg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+    const viewBox = clonedSvg.viewBox?.baseVal;
+    if (viewBox && viewBox.width && viewBox.height) {
+      clonedSvg.setAttribute("width", String(viewBox.width));
+      clonedSvg.setAttribute("height", String(viewBox.height));
+    }
+
+    clonedSvg.style.removeProperty("width");
+    clonedSvg.style.removeProperty("height");
+    clonedSvg.style.removeProperty("max-width");
+
+    return new XMLSerializer().serializeToString(clonedSvg);
+  };
 
   if (!flow) {
     return (
@@ -459,7 +752,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                     <Slider
                       className={styles.zoomSlider}
                       min={0.5}
-                      max={10}
+                      max={3}
                       step={0.1}
                       value={zoomLevel}
                       onChange={(_, data) => setZoomLevel(data.value)}
@@ -473,7 +766,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                       size="small"
                       icon={<ZoomIn20Regular />}
                       onClick={handleZoomIn}
-                      disabled={zoomLevel >= 10}
+                      disabled={zoomLevel >= 3}
                       title="Zoom In"
                     />
                     <Button
@@ -491,7 +784,16 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                     onClick={handleCopySVG}
                     disabled={isRendering || !!error}
                   >
-                    Copy SVG
+                    Copy Diagram
+                  </Button>
+                  <Button
+                    appearance="secondary"
+                    size="small"
+                    icon={<ArrowDownload24Regular />}
+                    onClick={handleExportPNG}
+                    disabled={isRendering || !!error}
+                  >
+                    Export PNG
                   </Button>
                   <Button
                     appearance="secondary"
@@ -545,14 +847,29 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                 )}
 
                 <div className={styles.diagramWrapper}>
-                  <div
-                    ref={mermaidRef}
-                    style={{
-                      transform: `scale(${zoomLevel})`,
-                      transformOrigin: "top center",
-                      transition: "transform 0.2s ease",
-                    }}
-                  />
+                  {legend.length > 0 && (
+                    <div className={styles.legendContainer}>
+                      <div className={styles.legendTitle}>Legend</div>
+                      {legend.map((item) => (
+                        <div key={item.label} className={styles.legendItem}>
+                          <div
+                            className={styles.legendColorBox}
+                            style={{
+                              backgroundColor: item.color,
+                              borderColor: item.border,
+                            }}
+                          />
+                          <span>{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className={styles.diagramCanvas}>
+                    <div
+                      ref={mermaidRef}
+                      style={{ transition: "all 0.2s ease" }}
+                    />
+                  </div>
                 </div>
               </>
             )}
@@ -564,11 +881,56 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
             )}
 
             {viewMode === "json" && (
-              <div className={styles.codeBlock}>
-                {flow.clientdata
-                  ? JSON.stringify(JSON.parse(flow.clientdata), null, 2)
-                  : "No data available"}
-              </div>
+              <>
+                <div className={styles.searchContainer}>
+                  <input
+                    type="text"
+                    className={styles.searchInput}
+                    placeholder="Search in JSON..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (e.shiftKey) {
+                          handlePrevMatch();
+                        } else {
+                          handleNextMatch();
+                        }
+                      }
+                    }}
+                  />
+                  <Button
+                    size="small"
+                    className={styles.searchButton}
+                    onClick={handlePrevMatch}
+                    disabled={searchMatches.length === 0}
+                    appearance="subtle"
+                  >
+                    Prev
+                  </Button>
+                  <Button
+                    size="small"
+                    className={styles.searchButton}
+                    onClick={handleNextMatch}
+                    disabled={searchMatches.length === 0}
+                    appearance="subtle"
+                  >
+                    Next
+                  </Button>
+                  <span className={styles.searchMatchCount}>
+                    {searchMatches.length > 0
+                      ? `${currentMatchIndex + 1} / ${searchMatches.length}`
+                      : searchQuery
+                        ? "No matches"
+                        : ""}
+                  </span>
+                </div>
+                <pre ref={jsonRef} className={styles.codeBlock}>
+                  {flow.clientdata
+                    ? JSON.stringify(JSON.parse(flow.clientdata), null, 2)
+                    : "No data available"}
+                </pre>
+              </>
             )}
           </div>
         </div>

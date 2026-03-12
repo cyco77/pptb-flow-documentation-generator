@@ -11,11 +11,9 @@
       "url": "https://github.com/cyco77"
     }
   ],
-  "cspExceptions": {},
   "configurations": {
     "repository": "https://github.com/cyco77/pptb-flow-documentation-generator",
     "website": "https://github.com/cyco77/pptb-flow-documentation-generator",
-    "iconUrl": "https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/refs/heads/main/icon/flow-documentation_logo.png",
     "readmeUrl": "https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/refs/heads/main/README.md"
   },
   "license": "MIT",

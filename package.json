@@ -17,7 +17,6 @@
     "readmeUrl": "https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/refs/heads/main/README.md"
   },
   "license": "MIT",
-  "icon": "https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/refs/heads/main/icon/flow-documentation_logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/cyco77/pptb-flow-documentation-generator.git"

@@ -108,7 +108,8 @@ const renderSwitchAction = (action: Action, lines: string[]) => {
   }
 
   cases.forEach(([caseName, caseAction], index) => {
-    const caseLabel = sanitizeText(caseAction.case || caseName) || `case-${index + 1}`;
+    const caseLabel =
+      sanitizeText(caseAction.case || caseName) || `case-${index + 1}`;
     const caseCondition = `case == ${caseLabel}`;
 
     if (index === 0) {
@@ -129,11 +130,17 @@ const renderSwitchAction = (action: Action, lines: string[]) => {
   lines.push("endif");
 };
 
-const renderForeachAction = (actionName: string, action: Action, lines: string[]) => {
+const renderForeachAction = (
+  actionName: string,
+  action: Action,
+  lines: string[],
+) => {
   const foreachSource = sanitizeText(action.foreach) || "items";
   const foreachLabel = sanitizeText(actionName);
 
-  lines.push(`while (Foreach: ${foreachLabel} from ${foreachSource}) is (next)`,);
+  lines.push(
+    `while (Foreach: ${foreachLabel} from ${foreachSource}) is (next)`,
+  );
 
   if (action.actions && Object.keys(action.actions).length > 0) {
     processActions(action.actions, lines);
@@ -144,7 +151,11 @@ const renderForeachAction = (actionName: string, action: Action, lines: string[]
   lines.push("endwhile");
 };
 
-const renderStandardAction = (actionName: string, action: Action, lines: string[]) => {
+const renderStandardAction = (
+  actionName: string,
+  action: Action,
+  lines: string[],
+) => {
   lines.push(`:${buildActionLabel(actionName, action)};`);
 
   if (action.actions && Object.keys(action.actions).length > 0) {

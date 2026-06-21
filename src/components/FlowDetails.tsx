@@ -340,7 +340,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(
-        document.fullscreenElement === fullscreenContainerRef.current
+        document.fullscreenElement === fullscreenContainerRef.current,
       );
     };
 
@@ -408,7 +408,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       }
     } catch (fullscreenError) {
       logger.error(
-        `Error toggling fullscreen mode: ${(fullscreenError as Error).message}`
+        `Error toggling fullscreen mode: ${(fullscreenError as Error).message}`,
       );
       await window.toolboxAPI.utils.showNotification({
         title: "Fullscreen Failed",
@@ -897,7 +897,6 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                   Copy to Clipboard
                 </Button>
               )}
-
             </div>
           </div>
 

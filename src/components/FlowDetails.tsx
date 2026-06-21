@@ -13,6 +13,8 @@ import {
 } from "@fluentui/react-components";
 import {
   ArrowDownload24Regular,
+  ArrowMinimize24Regular,
+  ArrowMaximize24Regular,
   Eye24Regular,
   Code24Regular,
   DocumentData24Regular,
@@ -42,9 +44,11 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
 }) => {
   const mermaidRef = useRef<HTMLDivElement>(null);
   const jsonRef = useRef<HTMLPreElement>(null);
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("diagram");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [mermaidCode, setMermaidCode] = useState<string>("");
   const [legend, setLegend] = useState<
     Array<{ label: string; color: string; border: string }>
@@ -75,6 +79,12 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       display: "flex",
       flexDirection: "column",
       maxHeight: "calc(100vh - 230px)",
+    },
+    diagramContainerFullscreen: {
+      width: "100vw",
+      height: "100vh",
+      maxHeight: "none",
+      borderRadius: 0,
     },
     tabsAndControlsContainer: {
       display: "flex",
@@ -327,6 +337,20 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
     svgElement.style.display = "block";
   }, [zoomLevel, diagramSize]);
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(
+        document.fullscreenElement === fullscreenContainerRef.current
+      );
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   const handleZoomIn = useCallback(() => {
     setZoomLevel((prev) => Math.min(prev + 0.1, 3));
   }, []);
@@ -370,6 +394,30 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       logger.error(`Error copying to clipboard: ${(error as Error).message}`);
     }
   }, [flow]);
+
+  const handleToggleFullscreen = useCallback(async () => {
+    if (!fullscreenContainerRef.current) {
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === fullscreenContainerRef.current) {
+        await document.exitFullscreen();
+      } else {
+        await fullscreenContainerRef.current.requestFullscreen();
+      }
+    } catch (fullscreenError) {
+      logger.error(
+        `Error toggling fullscreen mode: ${(fullscreenError as Error).message}`
+      );
+      await window.toolboxAPI.utils.showNotification({
+        title: "Fullscreen Failed",
+        body: `Could not switch fullscreen mode: ${(fullscreenError as Error).message}`,
+        type: "error",
+        duration: 3000,
+      });
+    }
+  }, []);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -719,7 +767,10 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
           <Text>{flow.modifiedon.toLocaleString()}</Text>
         </div>
 
-        <div className={styles.diagramContainer}>
+        <div
+          ref={fullscreenContainerRef}
+          className={`${styles.diagramContainer} ${isFullscreen ? styles.diagramContainerFullscreen : ""}`}
+        >
           <div className={styles.tabsAndControlsContainer}>
             <TabList
               selectedValue={viewMode}
@@ -776,6 +827,24 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                       onClick={handleZoomReset}
                       title="Reset Zoom"
                     />
+                    <Button
+                      appearance={isFullscreen ? "primary" : "subtle"}
+                      size="small"
+                      icon={
+                        isFullscreen ? (
+                          <ArrowMinimize24Regular />
+                        ) : (
+                          <ArrowMaximize24Regular />
+                        )
+                      }
+                      onClick={handleToggleFullscreen}
+                      title={
+                        isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"
+                      }
+                      aria-label={
+                        isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"
+                      }
+                    />
                   </div>
                   <Button
                     appearance="secondary"
@@ -828,6 +897,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                   Copy to Clipboard
                 </Button>
               )}
+
             </div>
           </div>
 

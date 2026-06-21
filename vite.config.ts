@@ -49,7 +49,13 @@ export default defineConfig({
     outDir: "dist",
     assetsDir: "assets",
     chunkSizeWarningLimit: 1000,
-    rollupOptions: {
+    rolldownOptions: {
+      // Explicitly define import.meta for non-ESM output to silence EMPTY_IMPORT_META warnings.
+      transform: {
+        define: {
+          "import.meta": "{}",
+        },
+      },
       output: {
         // Use IIFE format for compatibility with iframe srcdoc loading
         // ES modules can have issues when loaded via file:// URLs in iframes

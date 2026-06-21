@@ -28,10 +28,11 @@ import {
   convertToMermaid,
   MermaidResult,
 } from "../utils/Flow2MermaidConverter";
+import { convertToPlantUml } from "../utils/Flow2PlantUmlConverter";
 import { logger } from "../services/loggerService";
 import mermaid from "mermaid";
 
-type ViewMode = "diagram" | "mermaid" | "json";
+type ViewMode = "diagram" | "mermaid" | "plantuml" | "json";
 
 interface IFlowDetailsProps {
   flow: FLowDefinition | undefined;
@@ -50,6 +51,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>("diagram");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mermaidCode, setMermaidCode] = useState<string>("");
+  const [plantUmlCode, setPlantUmlCode] = useState<string>("");
   const [legend, setLegend] = useState<
     Array<{ label: string; color: string; border: string }>
   >([]);
@@ -254,12 +256,37 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
   }, [isDarkMode]);
 
   useEffect(() => {
+    if (!flow?.clientdata) {
+      setMermaidCode("");
+      setPlantUmlCode("");
+      setLegend([]);
+      setError(null);
+      return;
+    }
+
+    const mermaidResult: MermaidResult = convertToMermaid(flow.clientdata);
+    setMermaidCode(mermaidResult.diagram);
+    setLegend(mermaidResult.legend);
+
+    const plantUmlResult = convertToPlantUml(flow.clientdata);
+    setPlantUmlCode(plantUmlResult.diagram);
+
+    if (mermaidResult.diagram === "Error parsing JSON") {
+      setError("Failed to parse flow definition");
+      return;
+    }
+
+    setError(null);
+  }, [flow]);
+
+  useEffect(() => {
     const renderDiagram = async () => {
       if (
         !flow ||
-        !flow.clientdata ||
         !mermaidRef.current ||
-        viewMode !== "diagram"
+        viewMode !== "diagram" ||
+        !mermaidCode ||
+        mermaidCode === "Error parsing JSON"
       ) {
         return;
       }
@@ -268,28 +295,13 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
         setIsRendering(true);
         setError(null);
 
-        // Convert flow to mermaid syntax
-        const result: MermaidResult = convertToMermaid(flow.clientdata);
-        const mermaidSyntax = result.diagram;
-
-        if (mermaidSyntax === "Error parsing JSON") {
-          setError("Failed to parse flow definition");
-          return;
-        }
-
-        // Store mermaid code for display
-        setMermaidCode(mermaidSyntax);
-
-        // Store legend data
-        setLegend(result.legend);
-
         // Clear previous content
         mermaidRef.current.innerHTML = "";
 
         // Render the diagram
         const { svg } = await mermaid.render(
           `mermaid-${flow.workflowid}-${Date.now()}`,
-          mermaidSyntax,
+          mermaidCode,
         );
 
         if (mermaidRef.current) {
@@ -319,7 +331,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
     };
 
     renderDiagram();
-  }, [flow, viewMode]);
+  }, [flow, viewMode, mermaidCode]);
 
   useEffect(() => {
     if (!mermaidRef.current) {
@@ -377,6 +389,21 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       logger.error(`Error copying to clipboard: ${(error as Error).message}`);
     }
   }, [mermaidCode]);
+
+  const handleCopyPlantUml = useCallback(async () => {
+    try {
+      await window.toolboxAPI.utils.copyToClipboard(plantUmlCode);
+      logger.success("Copied PlantUML code to clipboard");
+      await window.toolboxAPI.utils.showNotification({
+        title: "Copy Successful",
+        body: "PlantUML code copied to clipboard",
+        type: "success",
+        duration: 3000,
+      });
+    } catch (error) {
+      logger.error(`Error copying to clipboard: ${(error as Error).message}`);
+    }
+  }, [plantUmlCode]);
 
   const handleCopyJSON = useCallback(async () => {
     if (!flow?.clientdata) return;
@@ -783,6 +810,9 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
               <Tab value="mermaid" icon={<Code24Regular />}>
                 Mermaid Code
               </Tab>
+              <Tab value="plantuml" icon={<Code24Regular />}>
+                PlantUML
+              </Tab>
               <Tab value="json" icon={<DocumentData24Regular />}>
                 JSON
               </Tab>
@@ -887,6 +917,17 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                 </Button>
               )}
 
+              {viewMode === "plantuml" && (
+                <Button
+                  appearance="secondary"
+                  size="small"
+                  icon={<Copy24Regular />}
+                  onClick={handleCopyPlantUml}
+                >
+                  Copy to Clipboard
+                </Button>
+              )}
+
               {viewMode === "json" && (
                 <Button
                   appearance="secondary"
@@ -947,6 +988,10 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
               <div className={styles.codeBlock}>
                 {mermaidCode.replace(/;/g, ";\n")}
               </div>
+            )}
+
+            {viewMode === "plantuml" && (
+              <div className={styles.codeBlock}>{plantUmlCode}</div>
             )}
 
             {viewMode === "json" && (

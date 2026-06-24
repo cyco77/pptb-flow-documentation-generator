@@ -1,6 +1,6 @@
 {
   "name": "@cyco77/pptb-flow-documentation-generator",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "displayName": "Flow Documentation Generator",
   "description": "A Power Platform Toolbox (PPTB) extension for exploring, visualizing, and documenting Power Automate Cloud Flows. Features interactive Mermaid diagram generation, multiple export formats (SVG, CSV, Markdown), advanced filtering, zoom controls, and seamless light/dark theme support.",
   "main": "index.html",

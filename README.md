@@ -1,22 +1,18 @@
 # Flow Documentation Generator
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/main/icon/flow-documentation_small.png" alt="Flow Documentation Generator Logo" width="314" height="150">
-</p>
+![Flow Documentation Generator](https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/main/icon/flow-documentation_small.png)
 
-<p align="center">
-  A Power Platform Toolbox (PPTB) tool for viewing and documenting Power Automate Cloud Flows. This tool provides an intuitive interface to explore flow definitions, visualize them as interactive Mermaid diagrams, and export documentation in multiple formats.
-</p>
+A Power Platform Toolbox (PPTB) tool for viewing and documenting Power Automate Cloud Flows. This tool provides an intuitive interface to explore flow definitions, visualize them as interactive Mermaid diagrams, and export documentation in multiple formats.
 
 ## Screenshots
 
 ### Dark Theme
 
-![Plugin Documentation Generator - Dark Theme](https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/main/screenshots/main_dark.png)
+![Flow Documentation Generator - Dark Theme](https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/main/screenshots/main_dark.png)
 
 ### Light Theme
 
-![Plugin Documentation Generator - Light Theme](https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/main/screenshots/main_light.png)
+![Flow Documentation Generator - Light Theme](https://raw.githubusercontent.com/cyco77/pptb-flow-documentation-generator/main/screenshots/main_light.png)
 
 ## Features
 

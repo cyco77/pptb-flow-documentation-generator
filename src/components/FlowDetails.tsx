@@ -217,8 +217,28 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       startOnLoad: false,
       theme: isDarkMode ? "dark" : "base",
       securityLevel: "loose",
+      flowchart: {
+        htmlLabels: false,
+      },
       themeVariables: isDarkMode
-        ? {}
+        ? {
+            // Keep Mermaid text dark so it stays readable on our fixed light node fills.
+            primaryTextColor: "#1f1f1f",
+            secondaryTextColor: "#1f1f1f",
+            tertiaryTextColor: "#1f1f1f",
+            textColor: "#1f1f1f",
+            nodeTextColor: "#1f1f1f",
+            mainBkg: "#cce5ff",
+            secondBkg: "#f3e5f5",
+            tertiaryBkg: "#e8f5e9",
+            lineColor: "#9ca3af",
+            nodeBorder: "#5b9bd5",
+            clusterBkg: "#1f1f1f",
+            clusterBorder: "#6b7280",
+            edgeLabelBackground: "#ffffff",
+            defaultLinkColor: "#9ca3af",
+            noteTextColor: "#1f1f1f",
+          }
         : {
             // Modern, fresh color scheme for light mode
             primaryColor: "#e3f2fd",
@@ -331,7 +351,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
     };
 
     renderDiagram();
-  }, [flow, viewMode, mermaidCode]);
+  }, [flow, viewMode, mermaidCode, isDarkMode]);
 
   useEffect(() => {
     if (!mermaidRef.current) {
@@ -746,6 +766,9 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
     clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     clonedSvg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 
+    inlineComputedStyles(svgElement, clonedSvg);
+    ensureForeignObjectNamespaces(clonedSvg);
+
     const viewBox = clonedSvg.viewBox?.baseVal;
     if (viewBox && viewBox.width && viewBox.height) {
       clonedSvg.setAttribute("width", String(viewBox.width));
@@ -757,6 +780,37 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
     clonedSvg.style.removeProperty("max-width");
 
     return new XMLSerializer().serializeToString(clonedSvg);
+  };
+
+  const inlineComputedStyles = (source: Element, target: Element) => {
+    const computedStyle = window.getComputedStyle(source);
+    const inlineStyle = Array.from(computedStyle)
+      .map(
+        (property) => `${property}:${computedStyle.getPropertyValue(property)};`,
+      )
+      .join("");
+
+    if (inlineStyle) {
+      target.setAttribute("style", inlineStyle);
+    }
+
+    const sourceChildren = Array.from(source.children);
+    const targetChildren = Array.from(target.children);
+
+    sourceChildren.forEach((child, index) => {
+      const targetChild = targetChildren[index];
+      if (targetChild) {
+        inlineComputedStyles(child, targetChild);
+      }
+    });
+  };
+
+  const ensureForeignObjectNamespaces = (svgRoot: SVGSVGElement) => {
+    svgRoot.querySelectorAll("foreignObject").forEach((foreignObject) => {
+      Array.from(foreignObject.children).forEach((child) => {
+        child.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+      });
+    });
   };
 
   if (!flow) {

@@ -18,6 +18,9 @@ import {
 
 export type { MermaidResult } from "./flow2mermaid/types";
 
+const mermaidEdge = (target: string, label?: string): string =>
+  label ? `-->|${label}| ${target}` : `--> ${target}`;
+
 export const convertToMermaid = (json: string): MermaidResult => {
   const legend: Array<{ label: string; color: string; border: string }> = [
     {
@@ -75,7 +78,8 @@ export const convertToMermaid = (json: string): MermaidResult => {
 
     mermaid += processActionsResult.mermaid;
 
-    return { diagram: mermaid, legend };
+    // Keep Mermaid statements on separate lines so malformed text cannot join two edges.
+    return { diagram: mermaid.replace(/;/g, ";\n"), legend };
   } catch (error) {
     console.error("Error parsing JSON:", error);
     return { diagram: "Error parsing JSON", legend: [] };
@@ -144,7 +148,9 @@ const renderSwitchAction = (
   let mermaid = "";
 
   if (previousStep.name) {
-    mermaid += `${previousStep.name} --> ${switchStepStart}["Switch - Start<br/>${action.expression}"];`;
+    mermaid += `${previousStep.name} ${mermaidEdge(
+      `${switchStepStart}["Switch - Start<br/>${action.expression}"]`
+    )};`;
   } else {
     mermaid += `${label ? "|" + label + "|" : ""}${switchStepStart}["Switch - Start<br/>${action.expression}"];`;
   }
@@ -160,7 +166,9 @@ const renderSwitchAction = (
         caseStepName
       );
       mermaid += processActionsResult.mermaid;
-      mermaid += `${processActionsResult.lastStep} --> ${switchEndStep}["Switch - End"];`;
+       mermaid += `${processActionsResult.lastStep} ${mermaidEdge(
+         `${switchEndStep}["Switch - End"]`
+       )};`;
       mermaid += `style ${switchEndStep} fill:${actionTypeColors.Switch.bg},stroke:${actionTypeColors.Switch.border},stroke-width:2px;`;
     }
   });
@@ -182,11 +190,12 @@ const renderIfAction = (
   let mermaid = "";
 
   if (previousStep.name) {
-    mermaid += `${previousStep.name} --> ${
-      label ? "|" + label + "|" : ""
-    }${conditionStepStart}["Condition - Start<br/>${translateIfExpression(
-      action.expression
-    )}"];`;
+    mermaid += `${previousStep.name} ${mermaidEdge(
+      `${conditionStepStart}["Condition - Start<br/>${translateIfExpression(
+        action.expression
+      )}"]`,
+      label
+    )};`;
   } else {
     mermaid += `${conditionStepStart}["Condition - Start<br/>${translateIfExpression(
       action.expression
@@ -203,11 +212,16 @@ const renderIfAction = (
     );
     mermaid += trueResult.mermaid;
     if (trueResult.lastStep) {
-      mermaid += `${trueResult.lastStep} --> ${conditionEndStep}["Condition - End"];`;
+      mermaid += `${trueResult.lastStep} ${mermaidEdge(
+        `${conditionEndStep}["Condition - End"]`
+      )};`;
       mermaid += `style ${conditionEndStep} fill:${actionTypeColors.If.bg},stroke:${actionTypeColors.If.border},stroke-width:2px;`;
     }
   } else {
-    mermaid += `${conditionStepStart} --> |true|${conditionEndStep}["Condition - End"];`;
+    mermaid += `${conditionStepStart} ${mermaidEdge(
+      `${conditionEndStep}["Condition - End"]`,
+      "true"
+    )};`;
     mermaid += `style ${conditionEndStep} fill:${actionTypeColors.If.bg},stroke:${actionTypeColors.If.border},stroke-width:2px;`;
   }
 
@@ -219,10 +233,15 @@ const renderIfAction = (
     );
     mermaid += falseResult.mermaid;
     if (falseResult.lastStep) {
-      mermaid += `${falseResult.lastStep} --> ${conditionEndStep}["Condition - End"];`;
+      mermaid += `${falseResult.lastStep} ${mermaidEdge(
+        `${conditionEndStep}["Condition - End"]`
+      )};`;
     }
   } else {
-    mermaid += `${conditionStepStart} --> |false|${conditionEndStep}["Condition - End"];`;
+    mermaid += `${conditionStepStart} ${mermaidEdge(
+      `${conditionEndStep}["Condition - End"]`,
+      "false"
+    )};`;
   }
 
   return {
@@ -242,9 +261,7 @@ const renderForeachAction = (
   let mermaid = "";
 
   if (previousStep.name) {
-    mermaid += `${previousStep.name} --> ${
-      label ? "|" + label + "|" : ""
-    }${foreachStepStart};`;
+    mermaid += `${previousStep.name} ${mermaidEdge(foreachStepStart, label)};`;
   } else {
     mermaid += `${foreachStepStart};`;
   }
@@ -287,9 +304,10 @@ const renderStandardAction = (
 
   let mermaid = "";
   if (previousStep.name) {
-    mermaid += `${cleanStepName(previousStep.name)} --> ${
-      label ? "|" + label + "|" : ""
-    }${elementCleanName}["${stepLabel}"];`;
+    mermaid += `${cleanStepName(previousStep.name)} ${mermaidEdge(
+      `${elementCleanName}["${stepLabel}"]`,
+      label
+    )};`;
   } else {
     mermaid += `${label ? "|" + label + "|" : ""}${elementCleanName}["${stepLabel}"];`;
   }

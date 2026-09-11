@@ -83,7 +83,7 @@ function App() {
           break;
       }
     },
-    [refreshConnection]
+    [refreshConnection],
   );
 
   async function updateThemeBasedOnSettings() {
@@ -114,7 +114,7 @@ function App() {
         <div className={styles.headerTitle}>
           <img
             src={iconImage}
-            alt="Plugin Documentation Generator Icon"
+            alt="Flow Documentation Generator"
             className={styles.headerIcon}
           />
           <Title3>Flow Documentation Generator</Title3>

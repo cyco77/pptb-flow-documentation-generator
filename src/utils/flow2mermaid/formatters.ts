@@ -15,7 +15,9 @@ export function cleanStepName(stepName: string | undefined): string {
 
 export function escapeStepName(stepName: string | undefined): string {
   if (!stepName) return "";
-  return stepName.replace(/"/g, "");
+  return stepName
+    .replace(/["\[\]{}|;]/g, "")
+    .replace(/[\r\n]+/g, " ");
 }
 
 export function escapeMermaidText(text: string | undefined): string {
@@ -27,6 +29,8 @@ export function escapeMermaidText(text: string | undefined): string {
     .replace(/}/g, "")
     .replace(/\?/g, "")
     .replace(/'/g, "")
+    .replace(/[\[\]{}|;]/g, "")
+    .replace(/[\r\n]+/g, " ")
     .substring(0, 40);
 }
 

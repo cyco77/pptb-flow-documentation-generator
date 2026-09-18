@@ -13,7 +13,7 @@ import {
   Title3,
   Text,
 } from "@fluentui/react-components";
-import iconImage from "../icon/flow-documentation_small.png";
+import iconImage from "../icon/flow-documentation_small.png?inline";
 
 const useStyles = makeStyles({
   root: {
@@ -39,7 +39,9 @@ const useStyles = makeStyles({
   },
   headerIcon: {
     height: "50px",
+    width: "114px",
     objectFit: "contain",
+    flexShrink: 0,
   },
   subtitle: {
     color: tokens.colorNeutralForeground3,

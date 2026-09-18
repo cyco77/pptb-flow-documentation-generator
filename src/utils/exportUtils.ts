@@ -44,11 +44,17 @@ export const copyFlowDefinitionsAsCSV = async (flows: FLowDefinition[], showNoti
 };
 
 const markdownValue = (value: unknown) => String(value ?? "").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+const removeMermaidFormatting = (diagram: string) => diagram
+  .replace(/:::[\w-]+/g, "")
+  .replace(/^\s*style\s+.*(?:\r?\n|$)/gm, "")
+  .trimEnd();
 
 export const generateFlowDefinitionsMarkdownContent = (flows: FLowDefinition[], format: DiagramFormat = "mermaid"): string => {
   const language = format === "mermaid" ? "mermaid" : "plantuml";
   return `# Flow Definitions\n\n${flows.map((flow) => {
-    const diagram = format === "mermaid" ? convertToMermaid(flow.clientdata || "").diagram : convertToPlantUml(flow.clientdata || "").diagram;
+    const diagram = format === "mermaid"
+      ? removeMermaidFormatting(convertToMermaid(flow.clientdata || "").diagram)
+      : convertToPlantUml(flow.clientdata || "").diagram;
     return `## ${markdownValue(flow.name)}\n\n| Property | Value |\n|---|---|\n| Description | ${markdownValue(flow.description)} |\n| State | ${stateLabel(flow.statecode)} |\n| Trigger | ${markdownValue(flow.trigger?.label)} |\n| Trigger (technical) | ${markdownValue(triggerTechnical(flow))} |\n| Connections | ${markdownValue(flow.connections.join(", "))} |\n| Owner | ${markdownValue(ownerName(flow))} |\n| Created By | ${markdownValue(flow.createdby)} |\n| Modified By | ${markdownValue(flow.modifiedby)} |\n| Created On | ${markdownValue(new Date(flow.createdon).toLocaleString())} |\n| Modified On | ${markdownValue(new Date(flow.modifiedon).toLocaleString())} |\n\n\`\`\`${language}\n${diagram}\n\`\`\`\n`;
   }).join("\n")}`;
 };

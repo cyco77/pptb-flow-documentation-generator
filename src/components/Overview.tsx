@@ -25,12 +25,9 @@ import {
   Dropdown,
   Option,
   tokens,
-  Drawer,
   DrawerBody,
   DrawerHeader,
   DrawerHeaderTitle,
-  Dialog,
-  DialogSurface,
   DialogBody,
   DialogTitle,
   DialogContent,
@@ -201,6 +198,7 @@ export const Overview: React.FC<IOverviewProps> = ({
     buttonGroup: {
       display: "flex",
       gap: tokens.spacingHorizontalS,
+      position: "relative",
     },
     selectionCell: {
       width: "48px",
@@ -211,8 +209,45 @@ export const Overview: React.FC<IOverviewProps> = ({
       textAlign: "center",
     },
     drawer: {
+      position: "fixed",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 1000,
+      display: "flex",
+      flexDirection: "column",
       width: "80vw",
       maxWidth: "1400px",
+      backgroundColor: tokens.colorNeutralBackground1,
+      boxShadow: tokens.shadow64,
+      borderLeft: `1px solid ${tokens.colorNeutralStroke1}`,
+      overflow: "hidden",
+    },
+    drawerBackdrop: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 999,
+      backgroundColor: "transparent",
+    },
+    dialogBackdrop: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 1099,
+      backgroundColor: "transparent",
+    },
+    dialogSurface: {
+      position: "fixed",
+      top: "50%",
+      left: "50%",
+      zIndex: 1100,
+      width: "min(600px, calc(100vw - 32px))",
+      transform: "translate(-50%, -50%)",
+      padding: tokens.spacingHorizontalXXL,
+      borderRadius: tokens.borderRadiusXLarge,
+      border: `1px solid ${tokens.colorTransparentStroke}`,
+      backgroundColor: tokens.colorNeutralBackground1,
+      color: tokens.colorNeutralForeground1,
+      boxShadow: tokens.shadow64,
     },
   });
 
@@ -281,6 +316,22 @@ export const Overview: React.FC<IOverviewProps> = ({
     setSelectedFlow(flow);
     setIsDrawerOpen(true);
   };
+
+  useEffect(() => {
+    if (!isDrawerOpen && !isExportDialogOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (isExportDialogOpen) {
+        setIsExportDialogOpen(false);
+      } else {
+        setIsDrawerOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isDrawerOpen, isExportDialogOpen]);
 
   // Filter flows based on search text
   const publisherFilteredFlows = useMemo(() => {
@@ -424,7 +475,7 @@ export const Overview: React.FC<IOverviewProps> = ({
               contentBefore={<Search20Regular />}
             />
             {selectedFlows.length > 0 && <div className={styles.buttonGroup}>
-              <Menu>
+              <Menu inline positioning="below-end">
                 <MenuTrigger disableButtonEnhancement>
                   <Button appearance="primary" aria-label={`Actions for ${selectedFlows.length} selected flows`}>...</Button>
                 </MenuTrigger>
@@ -585,53 +636,69 @@ export const Overview: React.FC<IOverviewProps> = ({
         </div>
       )}
 
-      <Drawer
-        type="overlay"
-        separator
-        open={isDrawerOpen}
-        onOpenChange={(_, { open }) => setIsDrawerOpen(open)}
-        position="end"
-        size="large"
-        style={{ width: "80vw", maxWidth: "1400px" }}
-      >
-        <DrawerHeader>
-          <DrawerHeaderTitle
-            action={
-              <Button
-                appearance="subtle"
-                aria-label="Close"
-                icon={<Dismiss24Regular />}
-                onClick={() => setIsDrawerOpen(false)}
-              />
-            }
+      {isDrawerOpen && (
+        <>
+          <div
+            aria-hidden="true"
+            className={styles.drawerBackdrop}
+            onClick={() => setIsDrawerOpen(false)}
+          />
+          <aside
+            aria-label={selectedFlow?.name || "Flow Details"}
+            className={styles.drawer}
           >
-            {selectedFlow?.name || "Flow Details"}
-          </DrawerHeaderTitle>
-        </DrawerHeader>
+            <DrawerHeader>
+              <DrawerHeaderTitle
+                action={
+                  <Button
+                    appearance="subtle"
+                    aria-label="Close"
+                    icon={<Dismiss24Regular />}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
+                }
+              >
+                {selectedFlow?.name || "Flow Details"}
+              </DrawerHeaderTitle>
+            </DrawerHeader>
 
-        <DrawerBody>
-          <FlowDetails flow={selectedFlow} isDarkMode={isDarkMode} />
-        </DrawerBody>
-      </Drawer>
+            <DrawerBody>
+              <FlowDetails flow={selectedFlow} isDarkMode={isDarkMode} />
+            </DrawerBody>
+          </aside>
+        </>
+      )}
 
-      <Dialog open={isExportDialogOpen} onOpenChange={(_, data) => setIsExportDialogOpen(data.open)}>
-        <DialogSurface>
-          <DialogBody>
-            <DialogTitle>Export Markdown</DialogTitle>
-            <DialogContent>
-              <Text>Choose the diagram format for the selected flows.</Text>
-              <RadioGroup value={diagramFormat} onChange={(_, data) => setDiagramFormat(data.value as DiagramFormat)}>
-                <Radio value="mermaid" label="Mermaid" />
-                <Radio value="plantuml" label="PlantUML" />
-              </RadioGroup>
-            </DialogContent>
-            <DialogActions>
-              <Button appearance="secondary" onClick={() => setIsExportDialogOpen(false)}>Cancel</Button>
-              <Button appearance="primary" onClick={async () => { setIsExportDialogOpen(false); await handleExportMarkdown(); }}>Export</Button>
-            </DialogActions>
-          </DialogBody>
-        </DialogSurface>
-      </Dialog>
+      {isExportDialogOpen && (
+        <>
+          <div
+            aria-hidden="true"
+            className={styles.dialogBackdrop}
+            onClick={() => setIsExportDialogOpen(false)}
+          />
+          <div
+            aria-label="Export Markdown"
+            aria-modal="true"
+            className={styles.dialogSurface}
+            role="dialog"
+          >
+            <DialogBody>
+              <DialogTitle>Export Markdown</DialogTitle>
+              <DialogContent>
+                <Text>Choose the diagram format for the selected flows.</Text>
+                <RadioGroup value={diagramFormat} onChange={(_, data) => setDiagramFormat(data.value as DiagramFormat)}>
+                  <Radio value="mermaid" label="Mermaid" />
+                  <Radio value="plantuml" label="PlantUML" />
+                </RadioGroup>
+              </DialogContent>
+              <DialogActions>
+                <Button appearance="secondary" onClick={() => setIsExportDialogOpen(false)}>Cancel</Button>
+                <Button appearance="primary" onClick={async () => { setIsExportDialogOpen(false); await handleExportMarkdown(); }}>Export</Button>
+              </DialogActions>
+            </DialogBody>
+          </div>
+        </>
+      )}
     </>
   );
 };

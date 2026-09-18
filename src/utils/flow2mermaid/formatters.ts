@@ -8,6 +8,19 @@ export const translateTypeName = (typeName: string): string => {
   return typeNameTranslations[typeName] || typeName;
 };
 
+export const getTriggerLabel = (typeName: string): string => {
+  const labels: Record<string, string> = {
+    Request: "HTTP-Anforderung",
+    Manual: "Manueller Trigger",
+    Recurrence: "Zeitplan",
+    OpenApiConnectionWebhook: "Webhook-Trigger",
+    OpenApiConnectionNotification: "Polling-Trigger",
+    OpenApiConnectionNotificationWithPolling: "Erweiterter Polling-Trigger",
+    ApiConnectionWebhook: "Legacy-Webhook-Trigger",
+  };
+  return labels[typeName] || translateTypeName(typeName);
+};
+
 export function cleanStepName(stepName: string | undefined): string {
   if (!stepName) return "";
   return stepName.replace(/[^a-zA-Z0-9_]/g, "_");

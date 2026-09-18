@@ -62,17 +62,25 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
 
   const useStyles = makeStyles({
+    root: {
+      minWidth: 0,
+      width: "100%",
+    },
     header: {
-      marginBottom: "20px",
+      marginBottom: "12px",
     },
     detailsGrid: {
       display: "grid",
       gridTemplateColumns: "auto 1fr auto 1fr",
-      gap: "12px 24px",
-      marginBottom: "24px",
+      gap: "6px 16px",
+      marginBottom: "14px",
+      fontSize: tokens.fontSizeBase300,
+      lineHeight: tokens.lineHeightBase300,
+      alignItems: "baseline",
     },
     label: {
       fontWeight: "600",
+      whiteSpace: "nowrap",
     },
     diagramContainer: {
       backgroundColor: tokens.colorNeutralBackground3,
@@ -80,7 +88,12 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       position: "relative",
       display: "flex",
       flexDirection: "column",
+      height: "calc(100vh - 390px)",
       maxHeight: "calc(100vh - 230px)",
+      minWidth: 0,
+      maxWidth: "100%",
+      overflow: "hidden",
+      minHeight: 0,
     },
     diagramContainerFullscreen: {
       width: "100vw",
@@ -96,17 +109,23 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
       flexShrink: 0,
       gap: tokens.spacingHorizontalM,
+      overflowX: "auto",
+      overflowY: "hidden",
+      whiteSpace: "nowrap",
     },
     controlsGroup: {
       display: "flex",
       gap: tokens.spacingHorizontalS,
       alignItems: "center",
+      flexShrink: 0,
+      whiteSpace: "nowrap",
     },
     zoomControls: {
       display: "flex",
       gap: tokens.spacingHorizontalXS,
       alignItems: "center",
       minWidth: "250px",
+      maxWidth: "100%",
     },
     zoomSlider: {
       width: "120px",
@@ -115,6 +134,8 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
       flex: 1,
       overflow: "auto",
       padding: "20px",
+      minWidth: 0,
+      minHeight: 0,
     },
     diagramWrapper: {
       minHeight: "400px",
@@ -822,7 +843,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
   }
 
   return (
-    <div className="card">
+    <div className={`card ${styles.root}`}>
       <Card>
         <CardHeader
           description={flow.description || "No description available"}
@@ -844,9 +865,25 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
           <Text className={styles.label}>Created On:</Text>
           <Text>{flow.createdon.toLocaleString()}</Text>
 
-          <Text className={styles.label}>Modified On:</Text>
-          <Text>{flow.modifiedon.toLocaleString()}</Text>
-        </div>
+           <Text className={styles.label}>Modified On:</Text>
+           <Text>{flow.modifiedon.toLocaleString()}</Text>
+
+           <Text className={styles.label}>Created By:</Text>
+           <Text>{flow.createdby || "-"}</Text>
+
+           <Text className={styles.label}>Modified By:</Text>
+           <Text>{flow.modifiedby || "-"}</Text>
+
+           <Text className={styles.label}>Trigger:</Text>
+           <Text>{flow.trigger ? `${flow.trigger.label} (${flow.trigger.name})` : "-"}</Text>
+
+           <Text className={styles.label}>Connections:</Text>
+           <Text>{flow.connections.join(", ") || "-"}</Text>
+
+           <Text className={styles.label}>Owner:</Text>
+           <Text>{[flow.owner?.name, flow.owner?.email].filter(Boolean).join(" ( ").replace(" ( ", " (") + (flow.owner?.name && flow.owner?.email ? ")" : "") || "-"}</Text>
+
+         </div>
 
         <div
           ref={fullscreenContainerRef}
@@ -937,7 +974,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                     onClick={handleCopySVG}
                     disabled={isRendering || !!error}
                   >
-                    Copy Diagram
+                    Copy
                   </Button>
                   <Button
                     appearance="secondary"
@@ -946,7 +983,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                     onClick={handleExportPNG}
                     disabled={isRendering || !!error}
                   >
-                    Export PNG
+                    PNG
                   </Button>
                   <Button
                     appearance="secondary"
@@ -955,7 +992,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                     onClick={handleExportSVG}
                     disabled={isRendering || !!error}
                   >
-                    Export SVG
+                    SVG
                   </Button>
                 </>
               )}
@@ -967,7 +1004,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                   icon={<Copy24Regular />}
                   onClick={handleCopyMermaid}
                 >
-                  Copy to Clipboard
+                  Copy
                 </Button>
               )}
 
@@ -978,7 +1015,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                   icon={<Copy24Regular />}
                   onClick={handleCopyPlantUml}
                 >
-                  Copy to Clipboard
+                  Copy
                 </Button>
               )}
 
@@ -989,7 +1026,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                   icon={<Copy24Regular />}
                   onClick={handleCopyJSON}
                 >
-                  Copy to Clipboard
+                  Copy
                 </Button>
               )}
             </div>

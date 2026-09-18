@@ -20,6 +20,9 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
     backgroundColor: tokens.colorNeutralBackground1,
+    height: "100vh",
+    minHeight: 0,
+    overflow: "hidden",
   },
   header: {
     padding: tokens.spacingVerticalL,
@@ -44,7 +47,8 @@ const useStyles = makeStyles({
   },
   content: {
     flex: 1,
-    overflow: "auto",
+    minHeight: 0,
+    overflow: "hidden",
     padding: tokens.spacingVerticalL,
     display: "flex",
     flexDirection: "column",

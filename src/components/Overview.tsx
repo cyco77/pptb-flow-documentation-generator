@@ -1,5 +1,10 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { loadFlowDefinitions } from "../services/dataverseService";
+import {
+  loadFlowDefinitions,
+  loadFlowDefinitionsForSolutions,
+  loadSolutionPublisherCatalog,
+  SolutionFilterOption,
+} from "../services/dataverseService";
 import { FlowDetails } from "./FlowDetails";
 import {
   makeStyles,
@@ -16,11 +21,27 @@ import {
   Badge,
   Input,
   Button,
+  Checkbox,
+  Dropdown,
+  Option,
   tokens,
   Drawer,
   DrawerBody,
   DrawerHeader,
   DrawerHeaderTitle,
+  Dialog,
+  DialogSurface,
+  DialogBody,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  RadioGroup,
+  Radio,
+  Menu,
+  MenuTrigger,
+  MenuPopover,
+  MenuList,
+  MenuItem,
 } from "@fluentui/react-components";
 import {
   Search20Regular,
@@ -37,6 +58,8 @@ import {
   exportFlowDefinitionsToCSV,
   copyFlowDefinitionsAsCSV,
   copyFlowDefinitionsAsMarkdown,
+  exportFlowDefinitionsToMarkdown,
+  DiagramFormat,
 } from "../utils/exportUtils";
 
 interface IOverviewProps {
@@ -53,15 +76,30 @@ export const Overview: React.FC<IOverviewProps> = ({
     undefined
   );
   const [isLoadingFlowDefinitions, setIsLoadingFlowDefinitons] =
-    useState(false);
+    useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [filterText, setFilterText] = useState<string>("");
   const [sortState, setSortState] = useState<{
     sortColumn: keyof FLowDefinition | undefined;
     sortDirection: "ascending" | "descending";
   }>({ sortColumn: "name", sortDirection: "ascending" });
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedFlowIds, setSelectedFlowIds] = useState<string[]>([]);
+  const [solutionFilter, setSolutionFilter] = useState<string[]>([]);
+  const [publisherFilter, setPublisherFilter] = useState<string[]>([]);
+  const [diagramFormat, setDiagramFormat] = useState<DiagramFormat>("mermaid");
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [solutionCatalog, setSolutionCatalog] = useState<SolutionFilterOption[]>([]);
+  const [publisherOptions, setPublisherOptions] = useState<string[]>([]);
 
   const useStyles = makeStyles({
+    root: {
+      display: "flex",
+      flexDirection: "column",
+      flex: 1,
+      minHeight: 0,
+      overflow: "visible",
+    },
     loadingContainer: {
       display: "flex",
       justifyContent: "center",
@@ -71,11 +109,53 @@ export const Overview: React.FC<IOverviewProps> = ({
     tableContainer: {
       overflowX: "auto",
       position: "relative",
+      flex: 1,
+      minHeight: 0,
+      overflowY: "auto",
+    },
+    tableLoadingOverlay: {
+      position: "absolute",
+      inset: 0,
+      zIndex: 2,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: tokens.colorNeutralBackgroundAlpha,
+    },
+    table: {
+      width: "2128px",
+      minWidth: "2128px",
+      maxWidth: "2128px",
+      tableLayout: "fixed",
+    },
+    tableRow: {
+      height: "44px",
+      "& > td": {
+        verticalAlign: "middle",
+      },
+    },
+    compactCell: {
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      minWidth: 0,
+      "& span": {
+        display: "block",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      },
     },
     clickableRow: {
       cursor: "pointer",
       "&:hover": {
         backgroundColor: "var(--colorNeutralBackground1Hover)",
+      },
+    },
+    selectedRow: {
+      backgroundColor: tokens.colorNeutralBackground1Selected,
+      "&:hover": {
+        backgroundColor: tokens.colorNeutralBackground1Selected,
       },
     },
     sortableHeader: {
@@ -84,6 +164,12 @@ export const Overview: React.FC<IOverviewProps> = ({
       "&:hover": {
         backgroundColor: tokens.colorNeutralBackground1Hover,
       },
+    },
+    tableHeader: {
+      position: "sticky",
+      top: 0,
+      zIndex: 1,
+      backgroundColor: tokens.colorNeutralBackground1,
     },
     resizer: {
       cursor: "col-resize",
@@ -102,6 +188,11 @@ export const Overview: React.FC<IOverviewProps> = ({
       justifyContent: "space-between",
       gap: tokens.spacingHorizontalM,
       marginBottom: tokens.spacingVerticalM,
+      position: "relative",
+      zIndex: 10,
+    },
+    dropdownListbox: {
+      zIndex: 1000,
     },
     searchInput: {
       minWidth: "300px",
@@ -111,6 +202,14 @@ export const Overview: React.FC<IOverviewProps> = ({
       display: "flex",
       gap: tokens.spacingHorizontalS,
     },
+    selectionCell: {
+      width: "48px",
+      minWidth: "48px",
+      maxWidth: "48px",
+      paddingLeft: tokens.spacingHorizontalS,
+      paddingRight: tokens.spacingHorizontalS,
+      textAlign: "center",
+    },
     drawer: {
       width: "80vw",
       maxWidth: "1400px",
@@ -118,18 +217,6 @@ export const Overview: React.FC<IOverviewProps> = ({
   });
 
   const styles = useStyles();
-
-  useEffect(() => {
-    const initialize = async () => {
-      if (!connection) {
-        return;
-      }
-      //querySdkSteps();
-      queryFlowDefinitons();
-    };
-
-    initialize();
-  }, [connection]);
 
   const showNotification = useCallback(
     async (
@@ -151,18 +238,32 @@ export const Overview: React.FC<IOverviewProps> = ({
     []
   );
 
-  const queryFlowDefinitons = useCallback(async () => {
-    try {
-      setIsLoadingFlowDefinitons(true);
-      const flowDefinitions = await loadFlowDefinitions();
-      setFlowDefinitions(flowDefinitions);
-      logger.info(`Fetched ${flowDefinitions.length} flow-definitions`);
-    } catch (error) {
-      logger.error(`Error querying sdk-steps: ${(error as Error).message}`);
-    } finally {
+  useEffect(() => {
+    if (!connection) {
       setIsLoadingFlowDefinitons(false);
+      setIsInitialLoading(false);
+      return;
     }
-  }, [connection, showNotification]);
+    loadSolutionPublisherCatalog()
+      .then(async (catalog) => {
+        setSolutionCatalog(catalog.solutions);
+        setPublisherOptions(catalog.publishers);
+        setIsLoadingFlowDefinitons(true);
+        try {
+          const flows = await loadFlowDefinitions();
+          setFlowDefinitions(flows);
+          logger.info(`Fetched ${flows.length} flow-definitions`);
+        } finally {
+          setIsLoadingFlowDefinitons(false);
+          setIsInitialLoading(false);
+        }
+      })
+      .catch((error) => {
+        logger.error(`Error loading solution filters: ${(error as Error).message}`);
+        setIsLoadingFlowDefinitons(false);
+        setIsInitialLoading(false);
+      });
+  }, [connection]);
 
   const getStateLabel = (statecode: number) => {
     switch (statecode) {
@@ -182,19 +283,56 @@ export const Overview: React.FC<IOverviewProps> = ({
   };
 
   // Filter flows based on search text
+  const publisherFilteredFlows = useMemo(() => {
+    if (!publisherFilter.length) return flowDefinitions;
+    return flowDefinitions.filter((flow) => publisherFilter.some((value) => flow.publisher?.split("; ").includes(value)));
+  }, [flowDefinitions, publisherFilter]);
+
+  const availableSolutionOptions = useMemo(() => {
+    if (!publisherFilter.length) return solutionCatalog;
+    return solutionCatalog.filter(
+      (solution) => solution.publisherName && publisherFilter.includes(solution.publisherName),
+    );
+  }, [publisherFilter, solutionCatalog]);
+
   const filteredFlows = useMemo(() => {
-    if (!filterText.trim()) {
-      return flowDefinitions;
+    const searchText = filterText.toLowerCase();
+    return publisherFilteredFlows.filter(
+      (flow) =>
+        (!searchText || [flow.name, flow.description, flow.trigger?.label, flow.connections.join(" "), flow.owner?.name, flow.owner?.email, flow.solution, flow.publisher, flow.createdby, flow.modifiedby].some((value) => value?.toLowerCase().includes(searchText))) &&
+        (!solutionFilter.length || solutionFilter.some((value) => flow.solution?.split("; ").includes(value))) &&
+        true
+    );
+  }, [publisherFilteredFlows, filterText, solutionFilter]);
+
+  const selectedFlows = useMemo(() => flowDefinitions.filter((flow) => selectedFlowIds.includes(flow.workflowid)), [flowDefinitions, selectedFlowIds]);
+  const clearSelection = useCallback(() => setSelectedFlowIds([]), []);
+  const updateFilter = useCallback((setter: React.Dispatch<React.SetStateAction<string[]>>, values: string[]) => {
+    setter(values);
+    clearSelection();
+    const selectedSolutionNames = setter === setSolutionFilter ? values : solutionFilter;
+    const selectedPublisherNames = setter === setPublisherFilter ? values : publisherFilter;
+    if (setter === setPublisherFilter) setSolutionFilter([]);
+
+    const matchingSolutions = solutionCatalog.filter((solution) =>
+      (selectedSolutionNames.length === 0 || selectedSolutionNames.includes(solution.name)) &&
+      (selectedPublisherNames.length === 0 || (solution.publisherName && selectedPublisherNames.includes(solution.publisherName))),
+    );
+
+    // No publisher or solution filter means the initial plain-flow result is sufficient.
+    if (matchingSolutions.length === solutionCatalog.length && selectedSolutionNames.length === 0 && selectedPublisherNames.length === 0) {
+      loadFlowDefinitions()
+        .then(setFlowDefinitions)
+        .catch((error) => logger.error(`Error loading flows: ${(error as Error).message}`));
+      return;
     }
 
-    const searchText = filterText.toLowerCase();
-    return flowDefinitions.filter(
-      (flow) =>
-        flow.name.toLowerCase().includes(searchText) ||
-        flow.description?.toLowerCase().includes(searchText) ||
-        false
-    );
-  }, [flowDefinitions, filterText]);
+    setIsLoadingFlowDefinitons(true);
+    loadFlowDefinitionsForSolutions(matchingSolutions.map((solution) => solution.id), solutionCatalog)
+      .then(setFlowDefinitions)
+      .catch((error) => logger.error(`Error loading filtered flows: ${(error as Error).message}`))
+      .finally(() => setIsLoadingFlowDefinitons(false));
+  }, [clearSelection, publisherFilter, solutionCatalog, solutionFilter]);
 
   const sortedFlows = useMemo(() => {
     if (!sortState.sortColumn) {
@@ -251,84 +389,83 @@ export const Overview: React.FC<IOverviewProps> = ({
   };
 
   // Export handlers
-  const handleExport = useCallback(async () => {
-    await exportFlowDefinitionsToCSV(sortedFlows, showNotification);
-  }, [sortedFlows, showNotification]);
-
-  const handleCopyCSV = useCallback(async () => {
-    await copyFlowDefinitionsAsCSV(sortedFlows, showNotification);
-  }, [sortedFlows, showNotification]);
-
   const handleCopyMarkdown = useCallback(async () => {
-    await copyFlowDefinitionsAsMarkdown(sortedFlows, showNotification);
-  }, [sortedFlows, showNotification]);
+    await copyFlowDefinitionsAsMarkdown(selectedFlows, showNotification, diagramFormat);
+  }, [selectedFlows, showNotification, diagramFormat]);
+
+  const handleExportMarkdown = useCallback(async () => {
+    await exportFlowDefinitionsToMarkdown(selectedFlows, diagramFormat, showNotification);
+  }, [selectedFlows, diagramFormat, showNotification]);
+  const toggleFlow = useCallback((id: string, checked: boolean) => setSelectedFlowIds((ids) => checked ? [...new Set([...ids, id])] : ids.filter((value) => value !== id)), []);
+  const toggleRow = useCallback((id: string) => {
+    setSelectedFlowIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
+  }, []);
 
   return (
     <>
-      {isLoadingFlowDefinitions ? (
+      {isInitialLoading ? (
         <div className={styles.loadingContainer}>
           <Spinner label="Loading flows..." />
         </div>
       ) : (
-        <div className="card">
+        <div className={`card ${styles.root}`}>
           <div className={styles.filterContainer}>
+            <Dropdown inlinePopup multiselect listbox={{ className: styles.dropdownListbox }} placeholder="Filter publishers" value={publisherFilter.join(", ")} selectedOptions={publisherFilter} onOptionSelect={(_, data) => updateFilter(setPublisherFilter, data.selectedOptions)}>
+              {publisherOptions.map((value) => <Option key={value} value={value}>{value}</Option>)}
+            </Dropdown>
+            <Dropdown inlinePopup multiselect listbox={{ className: styles.dropdownListbox }} placeholder="Filter solutions" value={solutionFilter.join(", ")} selectedOptions={solutionFilter} onOptionSelect={(_, data) => updateFilter(setSolutionFilter, data.selectedOptions)}>
+              {availableSolutionOptions.map((solution) => <Option key={solution.id} value={solution.name}>{solution.name}</Option>)}
+            </Dropdown>
             <Input
               className={styles.searchInput}
               placeholder="Search by name or description..."
               value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
+              onChange={(e) => { setFilterText(e.target.value); clearSelection(); }}
               contentBefore={<Search20Regular />}
             />
-            <div className={styles.buttonGroup}>
-              <Button
-                appearance="secondary"
-                icon={<Copy24Regular />}
-                onClick={handleCopyCSV}
-                disabled={sortedFlows.length === 0}
-              >
-                Copy CSV
-              </Button>
-              <Button
-                appearance="secondary"
-                icon={<DocumentTable24Regular />}
-                onClick={handleCopyMarkdown}
-                disabled={sortedFlows.length === 0}
-              >
-                Copy Markdown
-              </Button>
-              <Button
-                appearance="primary"
-                icon={<ArrowDownload24Regular />}
-                onClick={handleExport}
-                disabled={sortedFlows.length === 0}
-              >
-                Export CSV
-              </Button>
-            </div>
+            {selectedFlows.length > 0 && <div className={styles.buttonGroup}>
+              <Menu>
+                <MenuTrigger disableButtonEnhancement>
+                  <Button appearance="primary" aria-label={`Actions for ${selectedFlows.length} selected flows`}>...</Button>
+                </MenuTrigger>
+                <MenuPopover>
+                  <MenuList>
+                    <MenuItem icon={<Copy24Regular />} onClick={() => copyFlowDefinitionsAsCSV(selectedFlows, showNotification)}>
+                      Copy CSV
+                    </MenuItem>
+                    <MenuItem icon={<DocumentTable24Regular />} onClick={handleCopyMarkdown}>
+                      Copy Markdown
+                    </MenuItem>
+                    <MenuItem icon={<ArrowDownload24Regular />} onClick={() => exportFlowDefinitionsToCSV(selectedFlows, showNotification)}>
+                      Export CSV
+                    </MenuItem>
+                    <MenuItem icon={<ArrowDownload24Regular />} onClick={() => setIsExportDialogOpen(true)}>
+                      Export Markdown
+                    </MenuItem>
+                  </MenuList>
+                </MenuPopover>
+              </Menu>
+            </div>}
           </div>
           <div className={styles.tableContainer}>
-            <Table size="small" style={{ minWidth: "100%" }}>
-              <TableHeader>
+            {isLoadingFlowDefinitions && (
+              <div className={styles.tableLoadingOverlay}>
+                <Spinner label="Loading flows..." />
+              </div>
+            )}
+            <Table size="small" className={styles.table}>
+              <TableHeader className={styles.tableHeader}>
                 <TableRow>
-                  <TableHeaderCell
-                    className={styles.sortableHeader}
-                    onClick={() => handleSort("name")}
-                    style={{ width: "25%", minWidth: "200px" }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      }}
-                    >
-                      Name {getSortIcon("name")}
-                    </div>
+                  <TableHeaderCell className={styles.selectionCell}>
+                    <Checkbox aria-label="Select all visible flows" checked={sortedFlows.length > 0 && sortedFlows.every((flow) => selectedFlowIds.includes(flow.workflowid))} onChange={(event, data) => { event.stopPropagation(); setSelectedFlowIds(data.checked ? sortedFlows.map((flow) => flow.workflowid) : []); }} />
+                  </TableHeaderCell>
+                  <TableHeaderCell className={styles.sortableHeader} onClick={() => handleSort("name")} style={{ width: "280px" }}>
+                    Name {getSortIcon("name")}
                   </TableHeaderCell>
                   <TableHeaderCell
                     className={styles.sortableHeader}
                     onClick={() => handleSort("description")}
-                    style={{ width: "35%", minWidth: "200px" }}
+                    style={{ width: "420px" }}
                   >
                     <div
                       style={{
@@ -343,7 +480,7 @@ export const Overview: React.FC<IOverviewProps> = ({
                   <TableHeaderCell
                     className={styles.sortableHeader}
                     onClick={() => handleSort("statecode")}
-                    style={{ width: "10%", minWidth: "100px" }}
+                    style={{ width: "100px" }}
                   >
                     <div
                       style={{
@@ -358,7 +495,7 @@ export const Overview: React.FC<IOverviewProps> = ({
                   <TableHeaderCell
                     className={styles.sortableHeader}
                     onClick={() => handleSort("createdon")}
-                    style={{ width: "15%", minWidth: "120px" }}
+                    style={{ width: "130px" }}
                   >
                     <div
                       style={{
@@ -370,21 +507,14 @@ export const Overview: React.FC<IOverviewProps> = ({
                       Created On {getSortIcon("createdon")}
                     </div>
                   </TableHeaderCell>
-                  <TableHeaderCell
-                    className={styles.sortableHeader}
-                    onClick={() => handleSort("modifiedon")}
-                    style={{ width: "15%", minWidth: "120px" }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      }}
-                    >
-                      Modified On {getSortIcon("modifiedon")}
-                    </div>
+                  <TableHeaderCell className={styles.sortableHeader} onClick={() => handleSort("modifiedon")} style={{ width: "130px" }}>
+                    Modified On {getSortIcon("modifiedon")}
                   </TableHeaderCell>
+                  <TableHeaderCell style={{ width: "180px" }}>Created By</TableHeaderCell>
+                  <TableHeaderCell style={{ width: "180px" }}>Modified By</TableHeaderCell>
+                  <TableHeaderCell style={{ width: "200px" }}>Trigger</TableHeaderCell>
+                  <TableHeaderCell style={{ width: "260px" }}>Connections</TableHeaderCell>
+                  <TableHeaderCell style={{ width: "200px" }}>Owner</TableHeaderCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -393,10 +523,14 @@ export const Overview: React.FC<IOverviewProps> = ({
                   return (
                     <TableRow
                       key={flow.workflowid}
-                      className={styles.clickableRow}
-                      onClick={() => handleRowClick(flow)}
+                      className={`${styles.tableRow} ${styles.clickableRow} ${selectedFlowIds.includes(flow.workflowid) ? styles.selectedRow : ""}`}
+                      onClick={() => toggleRow(flow.workflowid)}
+                      aria-selected={selectedFlowIds.includes(flow.workflowid)}
                     >
-                      <TableCell style={{ width: "25%" }}>
+                      <TableCell className={styles.selectionCell}>
+                        <Checkbox aria-label={`Select ${flow.name}`} checked={selectedFlowIds.includes(flow.workflowid)} onChange={(event, data) => { event.stopPropagation(); toggleFlow(flow.workflowid, data.checked === true); }} />
+                      </TableCell>
+                      <TableCell style={{ width: "280px" }} className={styles.compactCell} title={flow.name}>
                         <TableCellLayout truncate>
                           <Link
                             onClick={(e) => {
@@ -408,7 +542,7 @@ export const Overview: React.FC<IOverviewProps> = ({
                           </Link>
                         </TableCellLayout>
                       </TableCell>
-                      <TableCell style={{ width: "35%" }}>
+                      <TableCell style={{ width: "420px" }} className={styles.compactCell}>
                         <TableCellLayout
                           truncate
                           title={flow.description || "-"}
@@ -416,27 +550,32 @@ export const Overview: React.FC<IOverviewProps> = ({
                           <Text>{flow.description || "-"}</Text>
                         </TableCellLayout>
                       </TableCell>
-                      <TableCell style={{ width: "10%" }}>
+                      <TableCell style={{ width: "100px" }}>
                         <TableCellLayout>
                           <Badge appearance="filled" color={state.color}>
                             {state.text}
                           </Badge>
                         </TableCellLayout>
                       </TableCell>
-                      <TableCell style={{ width: "15%" }}>
+                      <TableCell style={{ width: "130px" }}>
                         <TableCellLayout>
                           <Text>
                             {new Date(flow.createdon).toLocaleDateString()}
                           </Text>
                         </TableCellLayout>
                       </TableCell>
-                      <TableCell style={{ width: "15%" }}>
+                      <TableCell style={{ width: "130px" }}>
                         <TableCellLayout>
                           <Text>
                             {new Date(flow.modifiedon).toLocaleDateString()}
                           </Text>
                         </TableCellLayout>
                       </TableCell>
+                      <TableCell style={{ width: "180px" }} className={styles.compactCell}><Text title={flow.createdby}>{flow.createdby || "-"}</Text></TableCell>
+                      <TableCell style={{ width: "180px" }} className={styles.compactCell}><Text title={flow.modifiedby}>{flow.modifiedby || "-"}</Text></TableCell>
+                      <TableCell style={{ width: "200px" }} className={styles.compactCell}><Text title={flow.trigger?.label}>{flow.trigger?.label || "-"}</Text></TableCell>
+                      <TableCell style={{ width: "260px" }} className={styles.compactCell}><Text title={flow.connections.join(", ")}>{flow.connections.join(", ") || "-"}</Text></TableCell>
+                      <TableCell style={{ width: "200px" }} className={styles.compactCell}><Text title={flow.owner?.email}>{flow.owner?.name || flow.owner?.email || "-"}</Text></TableCell>
                     </TableRow>
                   );
                 })}
@@ -474,6 +613,25 @@ export const Overview: React.FC<IOverviewProps> = ({
           <FlowDetails flow={selectedFlow} isDarkMode={isDarkMode} />
         </DrawerBody>
       </Drawer>
+
+      <Dialog open={isExportDialogOpen} onOpenChange={(_, data) => setIsExportDialogOpen(data.open)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Export Markdown</DialogTitle>
+            <DialogContent>
+              <Text>Choose the diagram format for the selected flows.</Text>
+              <RadioGroup value={diagramFormat} onChange={(_, data) => setDiagramFormat(data.value as DiagramFormat)}>
+                <Radio value="mermaid" label="Mermaid" />
+                <Radio value="plantuml" label="PlantUML" />
+              </RadioGroup>
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setIsExportDialogOpen(false)}>Cancel</Button>
+              <Button appearance="primary" onClick={async () => { setIsExportDialogOpen(false); await handleExportMarkdown(); }}>Export</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
     </>
   );
 };

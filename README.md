@@ -23,6 +23,8 @@ A Power Platform Toolbox (PPTB) tool for viewing and documenting Power Automate 
   - Optimized column widths for better data visibility
   - Click any row to open details in a side drawer
 - 🔍 **Advanced Filtering** - Real-time search by flow name and description
+- 🧭 **Flow Metadata** - Trigger type, connections, owner, solution, and publisher information
+- 🎯 **Multi-select Export** - Select flows and export only the selected records
 - 📈 **Interactive Mermaid Diagrams** - Visualize flow logic with auto-generated Mermaid flowcharts
 - 🖼️ **Multiple View Modes**:
   - **Diagram View**: Interactive flowchart visualization with zoom controls
@@ -40,6 +42,7 @@ A Power Platform Toolbox (PPTB) tool for viewing and documenting Power Automate 
   - Copy flow list as Markdown table with flow details
   - Export individual flow diagrams as SVG & PNG file Image
   - Copy individual flow diagrams as PNG to clipboard
+  - Export selected flows as Markdown with Mermaid or PlantUML diagrams
 - 🎨 **Modern Theme Support**:
   - Automatic light/dark theme switching based on PPTB settings
   - Fresh, modern color palette for light mode diagrams (Material Design)

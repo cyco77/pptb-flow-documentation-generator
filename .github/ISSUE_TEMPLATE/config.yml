@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Power Platform ToolBox
+    url: https://github.com/PowerPlatformToolBox
+    about: Visit the Power Platform ToolBox GitHub organization.
+  - name: Report a security vulnerability
+    url: https://github.com/cyco77/pptb-flow-documentation-generator/security/advisories/new
+    about: Please report security vulnerabilities privately through GitHub Security Advisories.

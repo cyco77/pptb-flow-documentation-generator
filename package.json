@@ -42,6 +42,10 @@
   "scripts": {
     "build": "tsc && vite build",
     "dev": "vite",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:html": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html",
     "watch": "vite build --watch",
     "preview": "vite preview",
     "changeset": "changeset",
@@ -56,12 +60,18 @@
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
-    "@pptb/types": "^1.2.3",
+    "@pptb/types": "^1.2.6",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.0",
+    "@testing-library/user-event": "14.6.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.0.2",
-    "typescript": "^5.6.3",
-    "vite": "^8.0.16"
+    "@vitest/coverage-v8": "4.1.11",
+    "jsdom": "26.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.0.16",
+    "vitest": "4.1.11"
   },
   "files": [
     "dist"

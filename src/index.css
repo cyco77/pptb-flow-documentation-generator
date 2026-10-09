@@ -2,6 +2,33 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  scrollbar-color: var(--colorNeutralStroke1, #c8c6c4)
+    var(--colorNeutralBackground1, transparent);
+  scrollbar-width: thin;
+}
+
+/* Keep native scrollbars aligned with the active Fluent UI theme. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--colorNeutralBackground1, transparent);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--colorNeutralStroke1, #c8c6c4);
+  border: 3px solid var(--colorNeutralBackground1, #ffffff);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--colorNeutralStrokeAccessible, #a19f9d);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--colorNeutralBackground1, transparent);
 }
 
 body {

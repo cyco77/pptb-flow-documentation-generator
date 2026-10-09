@@ -39,6 +39,74 @@ interface IFlowDetailsProps {
   isDarkMode: boolean;
 }
 
+const useStyles = makeStyles({
+  root: { minWidth: 0, width: "100%" },
+  header: { marginBottom: "12px" },
+  detailsGrid: {
+    display: "grid",
+    gridTemplateColumns: "auto 1fr auto 1fr",
+    gap: "6px 16px",
+    marginBottom: "14px",
+    fontSize: tokens.fontSizeBase300,
+    lineHeight: tokens.lineHeightBase300,
+    alignItems: "baseline",
+    "@media (max-width: 760px)": {
+      gridTemplateColumns: "auto 1fr",
+    },
+  },
+  label: { fontWeight: "600", whiteSpace: "nowrap" },
+  diagramContainer: {
+    backgroundColor: tokens.colorNeutralBackground3,
+    borderRadius: tokens.borderRadiusMedium,
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    height: "calc(100vh - 360px)",
+    maxHeight: "calc(100vh - 230px)",
+    minWidth: 0,
+    maxWidth: "100%",
+    overflow: "hidden",
+    minHeight: "320px",
+  },
+  diagramContainerFullscreen: { width: "100vw", height: "100vh", maxHeight: "none", borderRadius: 0 },
+  tabsAndControlsContainer: {
+    display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap",
+    padding: "10px 16px", borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, flexShrink: 0,
+    gap: tokens.spacingHorizontalM, overflowX: "auto", overflowY: "hidden",
+  },
+  controlsGroup: { display: "flex", flexWrap: "wrap", gap: tokens.spacingHorizontalS, alignItems: "center", flexShrink: 0 },
+  zoomControls: { display: "flex", gap: tokens.spacingHorizontalXS, alignItems: "center", minWidth: 0, maxWidth: "100%" },
+  zoomSlider: { width: "120px" },
+  diagramContent: { flex: 1, overflow: "auto", padding: "20px", minWidth: 0, minHeight: 0 },
+  diagramWrapper: { minHeight: "400px", minWidth: "100%" },
+  diagramCanvas: { position: "relative", flexShrink: 0, marginLeft: "auto", marginRight: "auto", width: "fit-content" },
+  codeBlock: {
+    padding: "16px", backgroundColor: tokens.colorNeutralBackground1, borderRadius: tokens.borderRadiusSmall,
+    overflow: "auto", maxHeight: "calc(100vh - 370px)", fontFamily: "monospace", fontSize: "12px", whiteSpace: "pre",
+  },
+  loadingContainer: { display: "flex", justifyContent: "center", alignItems: "center", padding: "40px" },
+  errorContainer: {
+    padding: "20px", backgroundColor: tokens.colorPaletteRedBackground2,
+    borderRadius: tokens.borderRadiusMedium, color: tokens.colorPaletteRedForeground1,
+  },
+  legendContainer: {
+    position: "absolute", top: "70px", left: "10px", zIndex: 10, backgroundColor: tokens.colorNeutralBackground1,
+    borderRadius: tokens.borderRadiusSmall, padding: "8px 12px", boxShadow: tokens.shadow4,
+    display: "flex", flexDirection: "column", gap: "4px",
+  },
+  legendTitle: { fontWeight: "600", fontSize: "12px", marginBottom: "4px", color: tokens.colorNeutralForeground1 },
+  legendItem: { display: "flex", alignItems: "center", gap: "8px", fontSize: "11px" },
+  legendColorBox: { width: "16px", height: "16px", borderRadius: "2px", border: "2px solid" },
+  searchContainer: {
+    display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", backgroundColor: tokens.colorNeutralBackground1,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, position: "sticky", top: 0, zIndex: 10,
+    flexWrap: "wrap",
+  },
+  searchInput: { flex: 1, padding: "4px 8px", borderRadius: tokens.borderRadiusSmall, border: `1px solid ${tokens.colorNeutralStroke2}`, fontSize: "12px" },
+  searchMatchCount: { fontSize: "12px", color: tokens.colorNeutralForeground2, whiteSpace: "nowrap" },
+  searchButton: { padding: "2px 8px", fontSize: "12px" },
+});
+
 export const FlowDetails: React.FC<IFlowDetailsProps> = ({
   flow,
   isDarkMode,
@@ -60,175 +128,6 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMatches, setSearchMatches] = useState<number[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-
-  const useStyles = makeStyles({
-    root: {
-      minWidth: 0,
-      width: "100%",
-    },
-    header: {
-      marginBottom: "12px",
-    },
-    detailsGrid: {
-      display: "grid",
-      gridTemplateColumns: "auto 1fr auto 1fr",
-      gap: "6px 16px",
-      marginBottom: "14px",
-      fontSize: tokens.fontSizeBase300,
-      lineHeight: tokens.lineHeightBase300,
-      alignItems: "baseline",
-    },
-    label: {
-      fontWeight: "600",
-      whiteSpace: "nowrap",
-    },
-    diagramContainer: {
-      backgroundColor: tokens.colorNeutralBackground3,
-      borderRadius: tokens.borderRadiusMedium,
-      position: "relative",
-      display: "flex",
-      flexDirection: "column",
-      height: "calc(100vh - 390px)",
-      maxHeight: "calc(100vh - 230px)",
-      minWidth: 0,
-      maxWidth: "100%",
-      overflow: "hidden",
-      minHeight: 0,
-    },
-    diagramContainerFullscreen: {
-      width: "100vw",
-      height: "100vh",
-      maxHeight: "none",
-      borderRadius: 0,
-    },
-    tabsAndControlsContainer: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "12px 20px",
-      borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-      flexShrink: 0,
-      gap: tokens.spacingHorizontalM,
-      overflowX: "auto",
-      overflowY: "hidden",
-      whiteSpace: "nowrap",
-    },
-    controlsGroup: {
-      display: "flex",
-      gap: tokens.spacingHorizontalS,
-      alignItems: "center",
-      flexShrink: 0,
-      whiteSpace: "nowrap",
-    },
-    zoomControls: {
-      display: "flex",
-      gap: tokens.spacingHorizontalXS,
-      alignItems: "center",
-      minWidth: "250px",
-      maxWidth: "100%",
-    },
-    zoomSlider: {
-      width: "120px",
-    },
-    diagramContent: {
-      flex: 1,
-      overflow: "auto",
-      padding: "20px",
-      minWidth: 0,
-      minHeight: 0,
-    },
-    diagramWrapper: {
-      minHeight: "400px",
-      minWidth: "100%",
-    },
-    diagramCanvas: {
-      position: "relative",
-      flexShrink: 0,
-      marginLeft: "auto",
-      marginRight: "auto",
-      width: "fit-content",
-    },
-    codeBlock: {
-      padding: "16px",
-      backgroundColor: tokens.colorNeutralBackground1,
-      borderRadius: tokens.borderRadiusSmall,
-      overflow: "auto",
-      maxHeight: "calc(100vh - 370px)",
-      fontFamily: "monospace",
-      fontSize: "12px",
-      whiteSpace: "pre",
-    },
-    loadingContainer: {
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      padding: "40px",
-    },
-    errorContainer: {
-      padding: "20px",
-      backgroundColor: tokens.colorPaletteRedBackground2,
-      borderRadius: tokens.borderRadiusMedium,
-      color: tokens.colorPaletteRedForeground1,
-    },
-    legendContainer: {
-      position: "absolute",
-      top: "70px",
-      left: "10px",
-      zIndex: 10,
-      backgroundColor: tokens.colorNeutralBackground1,
-      borderRadius: tokens.borderRadiusSmall,
-      padding: "8px 12px",
-      boxShadow: tokens.shadow4,
-      display: "flex",
-      flexDirection: "column",
-      gap: "4px",
-    },
-    legendTitle: {
-      fontWeight: "600",
-      fontSize: "12px",
-      marginBottom: "4px",
-      color: tokens.colorNeutralForeground1,
-    },
-    legendItem: {
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      fontSize: "11px",
-    },
-    legendColorBox: {
-      width: "16px",
-      height: "16px",
-      borderRadius: "2px",
-      border: "2px solid",
-    },
-    searchContainer: {
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      padding: "8px 12px",
-      backgroundColor: tokens.colorNeutralBackground1,
-      borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-      position: "sticky",
-      top: 0,
-      zIndex: 10,
-    },
-    searchInput: {
-      flex: 1,
-      padding: "4px 8px",
-      borderRadius: tokens.borderRadiusSmall,
-      border: `1px solid ${tokens.colorNeutralStroke2}`,
-      fontSize: "12px",
-    },
-    searchMatchCount: {
-      fontSize: "12px",
-      color: tokens.colorNeutralForeground2,
-      whiteSpace: "nowrap",
-    },
-    searchButton: {
-      padding: "2px 8px",
-      fontSize: "12px",
-    },
-  });
 
   const styles = useStyles();
 
@@ -846,6 +745,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
     <div className={`card ${styles.root}`}>
       <Card>
         <CardHeader
+          header={<Text size={500} weight="semibold">{flow.name}</Text>}
           description={flow.description || "No description available"}
         />
 
@@ -862,26 +762,26 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
           <Text className={styles.label}>Workflow ID:</Text>
           <Text>{flow.workflowid}</Text>
 
+          <Text className={styles.label}>Trigger:</Text>
+          <Text>{flow.trigger ? `${flow.trigger.label} (${flow.trigger.name})` : "-"}</Text>
+
+          <Text className={styles.label}>Connections:</Text>
+          <Text>{flow.connections.join(", ") || "-"}</Text>
+
+          <Text className={styles.label}>Owner:</Text>
+          <Text>{[flow.owner?.name, flow.owner?.email].filter(Boolean).join(" ( ").replace(" ( ", " (") + (flow.owner?.name && flow.owner?.email ? ")" : "") || "-"}</Text>
+
           <Text className={styles.label}>Created On:</Text>
           <Text>{flow.createdon.toLocaleString()}</Text>
 
-           <Text className={styles.label}>Modified On:</Text>
-           <Text>{flow.modifiedon.toLocaleString()}</Text>
+          <Text className={styles.label}>Modified On:</Text>
+          <Text>{flow.modifiedon.toLocaleString()}</Text>
 
-           <Text className={styles.label}>Created By:</Text>
-           <Text>{flow.createdby || "-"}</Text>
+          <Text className={styles.label}>Created By:</Text>
+          <Text>{flow.createdby || "-"}</Text>
 
-           <Text className={styles.label}>Modified By:</Text>
-           <Text>{flow.modifiedby || "-"}</Text>
-
-           <Text className={styles.label}>Trigger:</Text>
-           <Text>{flow.trigger ? `${flow.trigger.label} (${flow.trigger.name})` : "-"}</Text>
-
-           <Text className={styles.label}>Connections:</Text>
-           <Text>{flow.connections.join(", ") || "-"}</Text>
-
-           <Text className={styles.label}>Owner:</Text>
-           <Text>{[flow.owner?.name, flow.owner?.email].filter(Boolean).join(" ( ").replace(" ( ", " (") + (flow.owner?.name && flow.owner?.email ? ")" : "") || "-"}</Text>
+          <Text className={styles.label}>Modified By:</Text>
+          <Text>{flow.modifiedby || "-"}</Text>
 
          </div>
 
@@ -1042,7 +942,7 @@ export const FlowDetails: React.FC<IFlowDetailsProps> = ({
                 )}
 
                 {error && (
-                  <div className={styles.errorContainer}>
+                  <div className={styles.errorContainer} role="alert">
                     <Text>{error}</Text>
                   </div>
                 )}

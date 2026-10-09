@@ -1,0 +1,5 @@
+overrides:
+  dompurify: 3.4.16
+  katex: 0.18.2
+  shell-quote: 1.12.0
+  source-map-js: 1.2.2

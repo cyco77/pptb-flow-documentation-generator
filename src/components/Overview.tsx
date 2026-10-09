@@ -61,11 +61,200 @@ import {
 
 interface IOverviewProps {
   connection: ToolBoxAPI.DataverseConnection | null;
+  isConnectionLoading: boolean;
   isDarkMode: boolean;
 }
 
+const useStyles = makeStyles({
+  root: {
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
+    minHeight: 0,
+    overflow: "visible",
+    containerName: "overview",
+    containerType: "inline-size",
+  },
+  loadingContainer: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "40px",
+  },
+  tableContainer: {
+    overflowX: "auto",
+    position: "relative",
+    flex: 1,
+    minHeight: 0,
+    overflowY: "auto",
+  },
+  tableLoadingOverlay: {
+    position: "absolute",
+    inset: 0,
+    zIndex: 2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: tokens.colorNeutralBackgroundAlpha,
+  },
+  table: {
+    width: "2128px",
+    minWidth: "2128px",
+    maxWidth: "2128px",
+    tableLayout: "fixed",
+  },
+  tableRow: {
+    height: "44px",
+    "& > td": {
+      verticalAlign: "middle",
+    },
+  },
+  compactCell: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    minWidth: 0,
+    "& span": {
+      display: "block",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+  },
+  clickableRow: {
+    cursor: "pointer",
+    "&:hover": {
+      backgroundColor: "var(--colorNeutralBackground1Hover)",
+    },
+  },
+  selectedRow: {
+    backgroundColor: tokens.colorNeutralBackground1Selected,
+    "&:hover": {
+      backgroundColor: tokens.colorNeutralBackground1Selected,
+    },
+  },
+  sortableHeader: {
+    cursor: "pointer",
+    userSelect: "none",
+    "&:hover": {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
+  },
+  tableHeader: {
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
+  resizer: {
+    cursor: "col-resize",
+    position: "absolute",
+    right: "0",
+    top: "0",
+    bottom: "0",
+    width: "4px",
+    "&:hover": {
+      backgroundColor: tokens.colorBrandBackground,
+    },
+  },
+  filterContainer: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: tokens.spacingHorizontalM,
+    marginBottom: tokens.spacingVerticalM,
+    position: "relative",
+    zIndex: 10,
+    "@container overview (max-width: 900px)": {
+      flexDirection: "column",
+      alignItems: "stretch",
+    },
+  },
+  filterControl: {
+    flex: "1 1 220px",
+    minWidth: 0,
+    "@container overview (max-width: 900px)": {
+      width: "100%",
+      flex: "none",
+    },
+  },
+  filterDropdown: {
+    width: "100%",
+  },
+  dropdownListbox: {
+    zIndex: 1000,
+  },
+  searchInput: {
+    flex: "1 1 300px",
+    minWidth: 0,
+    "@container overview (max-width: 900px)": {
+      width: "100%",
+      flex: "none",
+    },
+  },
+  buttonGroup: {
+    display: "flex",
+    gap: tokens.spacingHorizontalS,
+    position: "relative",
+    "@container overview (max-width: 900px)": {
+      alignSelf: "flex-start",
+    },
+  },
+  selectionCell: {
+    width: "48px",
+    minWidth: "48px",
+    maxWidth: "48px",
+    paddingLeft: tokens.spacingHorizontalS,
+    paddingRight: tokens.spacingHorizontalS,
+    textAlign: "center",
+  },
+  drawer: {
+    position: "fixed",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    display: "flex",
+    flexDirection: "column",
+    width: "80vw",
+    maxWidth: "1400px",
+    backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: tokens.shadow64,
+    borderLeft: `1px solid ${tokens.colorNeutralStroke1}`,
+    overflow: "hidden",
+  },
+  drawerBackdrop: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 999,
+    backgroundColor: "transparent",
+  },
+  dialogBackdrop: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 1099,
+    backgroundColor: "transparent",
+  },
+  dialogSurface: {
+    position: "fixed",
+    top: "50%",
+    left: "50%",
+    zIndex: 1100,
+    width: "min(600px, calc(100vw - 32px))",
+    transform: "translate(-50%, -50%)",
+    padding: tokens.spacingHorizontalXXL,
+    borderRadius: tokens.borderRadiusXLarge,
+    border: `1px solid ${tokens.colorTransparentStroke}`,
+    backgroundColor: tokens.colorNeutralBackground1,
+    color: tokens.colorNeutralForeground1,
+    boxShadow: tokens.shadow64,
+  },
+});
+
 export const Overview: React.FC<IOverviewProps> = ({
   connection,
+  isConnectionLoading,
   isDarkMode,
 }) => {
   const [flowDefinitions, setFlowDefinitions] = useState<FLowDefinition[]>([]);
@@ -88,168 +277,6 @@ export const Overview: React.FC<IOverviewProps> = ({
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [solutionCatalog, setSolutionCatalog] = useState<SolutionFilterOption[]>([]);
   const [publisherOptions, setPublisherOptions] = useState<string[]>([]);
-
-  const useStyles = makeStyles({
-    root: {
-      display: "flex",
-      flexDirection: "column",
-      flex: 1,
-      minHeight: 0,
-      overflow: "visible",
-    },
-    loadingContainer: {
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      padding: "40px",
-    },
-    tableContainer: {
-      overflowX: "auto",
-      position: "relative",
-      flex: 1,
-      minHeight: 0,
-      overflowY: "auto",
-    },
-    tableLoadingOverlay: {
-      position: "absolute",
-      inset: 0,
-      zIndex: 2,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: tokens.colorNeutralBackgroundAlpha,
-    },
-    table: {
-      width: "2128px",
-      minWidth: "2128px",
-      maxWidth: "2128px",
-      tableLayout: "fixed",
-    },
-    tableRow: {
-      height: "44px",
-      "& > td": {
-        verticalAlign: "middle",
-      },
-    },
-    compactCell: {
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      minWidth: 0,
-      "& span": {
-        display: "block",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      },
-    },
-    clickableRow: {
-      cursor: "pointer",
-      "&:hover": {
-        backgroundColor: "var(--colorNeutralBackground1Hover)",
-      },
-    },
-    selectedRow: {
-      backgroundColor: tokens.colorNeutralBackground1Selected,
-      "&:hover": {
-        backgroundColor: tokens.colorNeutralBackground1Selected,
-      },
-    },
-    sortableHeader: {
-      cursor: "pointer",
-      userSelect: "none",
-      "&:hover": {
-        backgroundColor: tokens.colorNeutralBackground1Hover,
-      },
-    },
-    tableHeader: {
-      position: "sticky",
-      top: 0,
-      zIndex: 1,
-      backgroundColor: tokens.colorNeutralBackground1,
-    },
-    resizer: {
-      cursor: "col-resize",
-      position: "absolute",
-      right: "0",
-      top: "0",
-      bottom: "0",
-      width: "4px",
-      "&:hover": {
-        backgroundColor: tokens.colorBrandBackground,
-      },
-    },
-    filterContainer: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: tokens.spacingHorizontalM,
-      marginBottom: tokens.spacingVerticalM,
-      position: "relative",
-      zIndex: 10,
-    },
-    dropdownListbox: {
-      zIndex: 1000,
-    },
-    searchInput: {
-      minWidth: "300px",
-      flexGrow: 1,
-    },
-    buttonGroup: {
-      display: "flex",
-      gap: tokens.spacingHorizontalS,
-      position: "relative",
-    },
-    selectionCell: {
-      width: "48px",
-      minWidth: "48px",
-      maxWidth: "48px",
-      paddingLeft: tokens.spacingHorizontalS,
-      paddingRight: tokens.spacingHorizontalS,
-      textAlign: "center",
-    },
-    drawer: {
-      position: "fixed",
-      top: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 1000,
-      display: "flex",
-      flexDirection: "column",
-      width: "80vw",
-      maxWidth: "1400px",
-      backgroundColor: tokens.colorNeutralBackground1,
-      boxShadow: tokens.shadow64,
-      borderLeft: `1px solid ${tokens.colorNeutralStroke1}`,
-      overflow: "hidden",
-    },
-    drawerBackdrop: {
-      position: "fixed",
-      inset: 0,
-      zIndex: 999,
-      backgroundColor: "transparent",
-    },
-    dialogBackdrop: {
-      position: "fixed",
-      inset: 0,
-      zIndex: 1099,
-      backgroundColor: "transparent",
-    },
-    dialogSurface: {
-      position: "fixed",
-      top: "50%",
-      left: "50%",
-      zIndex: 1100,
-      width: "min(600px, calc(100vw - 32px))",
-      transform: "translate(-50%, -50%)",
-      padding: tokens.spacingHorizontalXXL,
-      borderRadius: tokens.borderRadiusXLarge,
-      border: `1px solid ${tokens.colorTransparentStroke}`,
-      backgroundColor: tokens.colorNeutralBackground1,
-      color: tokens.colorNeutralForeground1,
-      boxShadow: tokens.shadow64,
-    },
-  });
 
   const styles = useStyles();
 
@@ -275,6 +302,7 @@ export const Overview: React.FC<IOverviewProps> = ({
 
   useEffect(() => {
     if (!connection) {
+      if (isConnectionLoading) return;
       setIsLoadingFlowDefinitons(false);
       setIsInitialLoading(false);
       return;
@@ -298,7 +326,7 @@ export const Overview: React.FC<IOverviewProps> = ({
         setIsLoadingFlowDefinitons(false);
         setIsInitialLoading(false);
       });
-  }, [connection]);
+  }, [connection, isConnectionLoading]);
 
   const getStateLabel = (statecode: number) => {
     switch (statecode) {
@@ -460,13 +488,17 @@ export const Overview: React.FC<IOverviewProps> = ({
         </div>
       ) : (
         <div className={`card ${styles.root}`}>
-          <div className={styles.filterContainer}>
-            <Dropdown inlinePopup multiselect listbox={{ className: styles.dropdownListbox }} placeholder="Filter publishers" value={publisherFilter.join(", ")} selectedOptions={publisherFilter} onOptionSelect={(_, data) => updateFilter(setPublisherFilter, data.selectedOptions)}>
-              {publisherOptions.map((value) => <Option key={value} value={value}>{value}</Option>)}
-            </Dropdown>
-            <Dropdown inlinePopup multiselect listbox={{ className: styles.dropdownListbox }} placeholder="Filter solutions" value={solutionFilter.join(", ")} selectedOptions={solutionFilter} onOptionSelect={(_, data) => updateFilter(setSolutionFilter, data.selectedOptions)}>
-              {availableSolutionOptions.map((solution) => <Option key={solution.id} value={solution.name}>{solution.name}</Option>)}
-            </Dropdown>
+          <div className={styles.filterContainer} data-testid="overview-filter-controls">
+            <div className={styles.filterControl}>
+              <Dropdown className={styles.filterDropdown} inlinePopup multiselect listbox={{ className: styles.dropdownListbox }} placeholder="Filter publishers" value={publisherFilter.join(", ")} selectedOptions={publisherFilter} onOptionSelect={(_, data) => updateFilter(setPublisherFilter, data.selectedOptions)}>
+                {publisherOptions.map((value) => <Option key={value} value={value}>{value}</Option>)}
+              </Dropdown>
+            </div>
+            <div className={styles.filterControl}>
+              <Dropdown className={styles.filterDropdown} inlinePopup multiselect listbox={{ className: styles.dropdownListbox }} placeholder="Filter solutions" value={solutionFilter.join(", ")} selectedOptions={solutionFilter} onOptionSelect={(_, data) => updateFilter(setSolutionFilter, data.selectedOptions)}>
+                {availableSolutionOptions.map((solution) => <Option key={solution.id} value={solution.name}>{solution.name}</Option>)}
+              </Dropdown>
+            </div>
             <Input
               className={styles.searchInput}
               placeholder="Search by name or description..."
@@ -543,6 +575,9 @@ export const Overview: React.FC<IOverviewProps> = ({
                       State {getSortIcon("statecode")}
                     </div>
                   </TableHeaderCell>
+                  <TableHeaderCell style={{ width: "200px" }}>Trigger</TableHeaderCell>
+                  <TableHeaderCell style={{ width: "260px" }}>Connections</TableHeaderCell>
+                  <TableHeaderCell style={{ width: "200px" }}>Owner</TableHeaderCell>
                   <TableHeaderCell
                     className={styles.sortableHeader}
                     onClick={() => handleSort("createdon")}
@@ -563,9 +598,6 @@ export const Overview: React.FC<IOverviewProps> = ({
                   </TableHeaderCell>
                   <TableHeaderCell style={{ width: "180px" }}>Created By</TableHeaderCell>
                   <TableHeaderCell style={{ width: "180px" }}>Modified By</TableHeaderCell>
-                  <TableHeaderCell style={{ width: "200px" }}>Trigger</TableHeaderCell>
-                  <TableHeaderCell style={{ width: "260px" }}>Connections</TableHeaderCell>
-                  <TableHeaderCell style={{ width: "200px" }}>Owner</TableHeaderCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -608,6 +640,9 @@ export const Overview: React.FC<IOverviewProps> = ({
                           </Badge>
                         </TableCellLayout>
                       </TableCell>
+                      <TableCell style={{ width: "200px" }} className={styles.compactCell}><Text title={flow.trigger?.label}>{flow.trigger?.label || "-"}</Text></TableCell>
+                      <TableCell style={{ width: "260px" }} className={styles.compactCell}><Text title={flow.connections.join(", ")}>{flow.connections.join(", ") || "-"}</Text></TableCell>
+                      <TableCell style={{ width: "200px" }} className={styles.compactCell}><Text title={flow.owner?.email}>{flow.owner?.name || flow.owner?.email || "-"}</Text></TableCell>
                       <TableCell style={{ width: "130px" }}>
                         <TableCellLayout>
                           <Text>
@@ -624,9 +659,6 @@ export const Overview: React.FC<IOverviewProps> = ({
                       </TableCell>
                       <TableCell style={{ width: "180px" }} className={styles.compactCell}><Text title={flow.createdby}>{flow.createdby || "-"}</Text></TableCell>
                       <TableCell style={{ width: "180px" }} className={styles.compactCell}><Text title={flow.modifiedby}>{flow.modifiedby || "-"}</Text></TableCell>
-                      <TableCell style={{ width: "200px" }} className={styles.compactCell}><Text title={flow.trigger?.label}>{flow.trigger?.label || "-"}</Text></TableCell>
-                      <TableCell style={{ width: "260px" }} className={styles.compactCell}><Text title={flow.connections.join(", ")}>{flow.connections.join(", ") || "-"}</Text></TableCell>
-                      <TableCell style={{ width: "200px" }} className={styles.compactCell}><Text title={flow.owner?.email}>{flow.owner?.name || flow.owner?.email || "-"}</Text></TableCell>
                     </TableRow>
                   );
                 })}

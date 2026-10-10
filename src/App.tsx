@@ -59,7 +59,7 @@ const useStyles = makeStyles({
 });
 
 function App() {
-  const { connection, refreshConnection } = useConnection();
+  const { connection, isLoading: isConnectionLoading, refreshConnection } = useConnection();
 
   const [theme, setTheme] = useState<Theme>(teamsDarkTheme);
   const styles = useStyles();
@@ -132,9 +132,9 @@ function App() {
       <div className={styles.content}>
         <Overview
           connection={connection}
+          isConnectionLoading={isConnectionLoading}
           isDarkMode={theme === teamsDarkTheme}
         />
-        {/* <EventLog /> */}
       </div>
     </FluentProvider>
   );

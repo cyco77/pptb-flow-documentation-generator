@@ -16,6 +16,28 @@ export interface IFilterProps {
   onFilterChanged: (flowDefinition: string | undefined) => void;
 }
 
+const useStyles = makeStyles({
+  root: {
+    display: "flex",
+    gap: "20px",
+    alignItems: "flex-end",
+  },
+  field: {
+    display: "grid",
+    justifyItems: "start",
+    gap: "2px",
+  },
+  dropdown: {
+    minWidth: "450px",
+  },
+  searchInput: {
+    minWidth: "250px",
+  },
+  option: {
+    whiteSpace: "nowrap",
+  },
+});
+
 export const Filter = (props: IFilterProps): JSXElement => {
   const dropdownId = useId("dropdown");
 
@@ -31,28 +53,6 @@ export const Filter = (props: IFilterProps): JSXElement => {
   const sortedItems = [...flowDefinitions].sort((a, b) =>
     a.name.localeCompare(b.name)
   );
-
-  const useStyles = makeStyles({
-    root: {
-      display: "flex",
-      gap: "20px",
-      alignItems: "flex-end",
-    },
-    field: {
-      display: "grid",
-      justifyItems: "start",
-      gap: "2px",
-    },
-    dropdown: {
-      minWidth: "450px",
-    },
-    searchInput: {
-      minWidth: "250px",
-    },
-    option: {
-      whiteSpace: "nowrap",
-    },
-  });
 
   const styles = useStyles();
 
